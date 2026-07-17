@@ -1,0 +1,1981 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дерево Опоры — Roots & Fruits</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Fraunces:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --ink:        #2B2A26;
+            --ink-soft:   #5C5A53;
+            --ink-muted:  #8A877E;
+            --cream:      #FDFBF7;
+            --cream-2:    #F5F1E8;
+            --line:       #E8E2D4;
+            --line-soft:  #F0EBE0;
+
+            --terracotta:      #B8896B;
+            --terracotta-dark: #8B6344;
+            --moss:            #7A8D6A;
+            --moss-dark:       #5B6E4E;
+            --sage:            #AED581;
+            --sage-dark:       #8BAF5C;
+            --coral:           #E8876B;
+            --coral-dark:      #C76A4F;
+
+            --accent:     #6B8FA8;
+        }
+        body {
+            font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 400;
+            color: var(--ink);
+            background: #1a1a2e;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        #root { width: 100%; height: 100vh; }
+        .serif { font-family: 'Fraunces', Georgia, serif; }
+        .scrollable { overflow-y: auto; }
+        .scrollable::-webkit-scrollbar { width: 6px; }
+        .scrollable::-webkit-scrollbar-track { background: transparent; }
+        .scrollable::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+        .scrollable::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
+
+        input.app-input, textarea.app-input {
+            font-family: 'Manrope', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--ink);
+            background: white;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 10px 12px;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        input.app-input:focus, textarea.app-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(107,143,168,0.15);
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes scaleIn { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="react">
+        const { useState, useEffect, useRef } = React;
+
+        // ===== ДАННЫЕ ДЕРЕВА =====
+        const ROOT_SLOTS = [
+            { id: 'root-1', x: 25, y: 94 },
+            { id: 'root-2', x: 36, y: 95 },
+            { id: 'root-3', x: 47, y: 95.5 },
+            { id: 'root-4', x: 58, y: 95.5 },
+            { id: 'root-5', x: 69, y: 95 },
+            { id: 'root-6', x: 80, y: 93 },
+        ];
+        const BRANCH_SLOTS = [
+            { id: 'branch-1', x: 48, y: 36, angle: 0 },
+            { id: 'branch-2', x: 28, y: 42, angle: -25 },
+            { id: 'branch-3', x: 72, y: 42, angle: 25 },
+            { id: 'branch-4', x: 26, y: 67, angle: 25 },
+            { id: 'branch-5', x: 72, y: 67, angle: -25 },
+        ];
+        const ORANGE_POSITIONS = [
+            { x: 50, y: 15 }, { x: 35, y: 12 }, { x: 65, y: 12 },
+            { x: 20, y: 25 }, { x: 80, y: 25 },
+            { x: 12, y: 35 }, { x: 88, y: 35 },
+            { x: 18, y: 48 }, { x: 82, y: 48 },
+            { x: 10, y: 22 }, { x: 90, y: 22 },
+            { x: 28, y: 18 }, { x: 72, y: 18 },
+            { x: 25, y: 40 }, { x: 75, y: 40 },
+        ];
+        const TRUNK = { centerX: 50, centerY: 48, radius: 16 };
+
+        // ===== ТЕКСТЫ =====
+        const ZONE_INFO = {
+            roots:    { name: 'Опоры',        color: 'var(--terracotta-dark)', bg: 'var(--terracotta)', label: 'Опора',         tagline: 'твоя точка возврата' },
+            trunk:    { name: 'Ресурсы',      color: 'var(--moss-dark)',       bg: 'var(--moss)',       label: 'Ресурс',        tagline: 'то, что у тебя есть сейчас' },
+            branches: { name: 'Ветки фокуса', color: 'var(--sage-dark)',       bg: 'var(--sage)',       label: 'Ветка фокуса',  tagline: 'куда ты направляешь энергию' },
+            crown:    { name: 'Плоды',        color: 'var(--coral-dark)',      bg: 'var(--coral)',      label: 'Плод',          tagline: 'конкретные шаги' },
+        };
+
+        const DEFINITIONS = {
+            roots: 'То, что возвращает тебе ощущение опоры и тепла, когда внутри тревога, упадок или сомнение. Люди, события, ценности, символы — всё, что напоминает: «я уже справлялся, у меня есть на что опереться». Корни не решают проблему — они возвращают спокойствие, из которого можно действовать дальше.',
+            trunk: 'Реальные ресурсы, которые работают на тебя последние 3 месяца и будут доступны ещё 3 месяца вперёд. Деньги, навыки, время, отношения, опыт. Не «как должно быть», а как есть — включая то, что хотелось бы изменить. Ствол даёт чувство собственной ценности и делает путь к плодам видимым.',
+            branches: 'Сферы, в которых ты хочешь расти прямо сейчас: спорт, отношения, бизнес, семья, обучение. У человека ограничено внимание — поэтому веток немного, до пяти. Ветка — это не цель. Это направление фокуса, в котором будут расти твои плоды.',
+            crown: 'То, что ты собираешься сорвать. Не «хочу больше денег», а «200к в месяц к декабрю» — это главный плод. И промежуточные — как шаги, без которых невозможно сорвать главный. Чем конкретнее формулировка — тем выше вероятность успеха и вкус плода, даже если остановишься на промежуточном.',
+        };
+
+        const EXAMPLES = {
+            roots: {
+                title: 'Корень «шапка» или «семья»',
+                body: [
+                    'Корнем может быть как что-то конкретное (предмет, человек, событие), так и абстрактное — семья, юмор, дружба, свобода. Конкретика не важна. Важно чувство, которое возникает, когда смотришь на этот корень.',
+                    'Слово «шапка» у разных людей значит разное:',
+                    '— У одного — событие: ребёнком увидел шапку и так впечатлился, что теперь сам делает шапки.',
+                    '— У другого — человек: ассоциация с близким, при взгляде встаёт его образ.',
+                    '— У третьего — символ: ощущение себя в моменте, когда надевал шапку, например любовь к маме.',
+                    'Главное не само слово, а отклик внутри.',
+                ],
+            },
+            trunk: {
+                title: 'Ресурс «терпение» или текущий доход',
+                body: [
+                    'Одно слово — разная функция. «Терпение»:',
+                    '— Один записал в смысле «не спешить, дать процессу время». Когда видит — успокаивается.',
+                    '— Другой — как напоминание: раньше терпел во вред себе, теперь учится не молчать.',
+                    'Текущий доход тоже звучит по-разному:',
+                    '— Для одного это средство: возможность вложиться в курс, переезд, плод.',
+                    '— Для другого — достижение: видимый результат пути.',
+                    'Когда ствол заполнен — должно быть ясно видно, как именно эти ресурсы помогут сорвать каждый плод.',
+                ],
+            },
+            branches: {
+                title: 'Ветка «Бизнес» — две версии',
+                body: [
+                    'Одна и та же ветка, разные намерения:',
+                    '— У одного «Бизнес» — почитать про рынок и подумать, в какую нишу заходить.',
+                    '— У другого «Бизнес» — найти первого клиента и закрыть сделку до конца месяца.',
+                    'Плоды отражают основное намерение развития ветки — то, куда ты тратишь свой драгоценный фокус, время и ресурсы. Поэтому название ветки лучше делать конкретным: не «Здоровье вообще», а «Восстановление сна» или «Силовые тренировки».',
+                ],
+            },
+            crown: {
+                title: 'Плод — формулировка решает',
+                body: [
+                    '«Хочу больше денег» → мозг не понимает, что делать. Цель размыта.',
+                    '«200к в месяц к декабрю, чтобы переехать» → есть срок, сумма, смысл.',
+                    'Если ветка «Смена профессии», мастер-плод может быть «устроиться на новую работу к июню». Промежуточные:',
+                    '— Изучить рынок (и заранее решить, как поймёшь, что плод сорван).',
+                    '— Поговорить с человеком из этой профессии.',
+                    '— Пройти курс по нужному навыку.',
+                    'Так большая цель разбивается на достижимые шаги.',
+                ],
+            },
+        };
+
+        const QUESTIONS = {
+            roots: {
+                start: [
+                    'Без чего ты не представляешь свою жизнь?',
+                    'Что или кто всегда был тебе опорой?',
+                ],
+                deep: [
+                    'На что ты опираешься столько, сколько себя помнишь?',
+                    'Что поддерживало тебя в самые трудные моменты — и помогает до сих пор?',
+                    'Кто или что было рядом в моменты, когда ты стал сильнее?',
+                ],
+                body: ['Когда ты думаешь о том, что тебя по-настоящему держит на плаву — где в теле появляется тепло, спокойствие, единение? Если отклика нет — возможно, эта опора не твоя или больше не актуальна.'],
+            },
+            trunk: {
+                start: ['Какие свои качества, достижения считаешь поводом для гордости?'],
+                deep: [
+                    'Какие ресурсы помогут тебе продвигаться ближе к вкушению плодов по каждой из веток?',
+                    'Какие ресурсы сейчас актуальны и будут ещё как минимум 3 месяца?',
+                    'Есть ли какое-то качество, тревога или ситуация, которая ощущается как груз? Как видишь её трансформацию — и что в ней работает на тебя уже сейчас, в том виде, какое есть?',
+                ],
+                body: ['При взгляде на ресурсы — какие вызывают ощущение «я могу», а какие напряжение или сжатие? Это сигнал: одни поддержать и усилить, к другим изменить отношение, увидеть силу и принять.'],
+            },
+            branches: {
+                start: ['Если бы у тебя была одна сфера, на которой нужно сосредоточиться полгода — какая?'],
+                deep: [
+                    'Топ каких сфер жизни больше всего хочешь изменить, улучшить, вырасти в ближайшие месяцы или год? Выбери каждой приоритет от 1 до 5, ориентируясь на доступные ресурсы.',
+                    'Какие ветки уже получают твоё внимание и энергию, даже если ты этого не замечаешь?',
+                    'Какие ветки сейчас требуют твоего участия больше всего — куда хочешь направить ресурсы?',
+                ],
+                body: ['Какие основные векторы в твоей жизни самые важные — прочти их название и следи за откликом тела, где замечаешь отклик? Если отклика нет — возможно, желание не лично твоё, а взято извне.'],
+            },
+            crown: {
+                start: ['Какой ты хочешь видеть свою жизнь через год? Подумай и представь свои дни по каждой из приоритетных сфер.'],
+                deep: [
+                    'Какой плод самый важный на каждой ветке — тот, что подарит желаемую реальность?',
+                    'Какие конкретные шаги (промежуточные плоды) необходимо вкусить, чтобы сорвать основной?',
+                    'Какие ресурсы из ствола помогут тебе сорвать плоды?',
+                ],
+                body: [
+                    'Когда ты представляешь, что плод сорван — какое ощущение? Радость и спокойствие — твой. Тревога и пустота — возможно, цель не твоя.',
+                    'Какими ощущениями откликается в теле общий взгляд на крону целиком?',
+                ],
+            },
+        };
+
+        // ===== ВНУТРЕННИЕ КОМПОНЕНТЫ =====
+
+        function DeleteBtn({ onClick }) {
+            const [hover, setHover] = useState(false);
+            return (
+                <button
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onMouseEnter={() => setHover(true)}
+                    onMouseLeave={() => setHover(false)}
+                    onClick={onClick}
+                    style={{
+                        position: 'absolute', top: '-7px', right: '-7px',
+                        width: '20px', height: '20px', borderRadius: '50%',
+                        background: hover ? '#d93838' : '#e05050',
+                        border: '2px solid white', color: 'white',
+                        cursor: 'pointer', fontSize: '11px', fontWeight: 600,
+                        fontFamily: 'Manrope, sans-serif',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                        zIndex: 10, transition: 'background 0.15s', lineHeight: 1,
+                    }}
+                >×</button>
+            );
+        }
+
+        function useDraggable({ item, containerRef, onDrag, onEdit }) {
+            const [dragging, setDragging] = useState(false);
+            const dragRef = useRef({ startX: 0, startY: 0, moved: false });
+
+            const handleMouseDown = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dragRef.current = { startX: e.clientX, startY: e.clientY, moved: false };
+                setDragging(true);
+            };
+
+            useEffect(() => {
+                if (!dragging) return;
+                const handleMove = (e) => {
+                    const dx = Math.abs(e.clientX - dragRef.current.startX);
+                    const dy = Math.abs(e.clientY - dragRef.current.startY);
+                    if (dx > 3 || dy > 3) dragRef.current.moved = true;
+                    if (!containerRef.current) return;
+                    const rect = containerRef.current.getBoundingClientRect();
+                    const newX = ((e.clientX - rect.left) / rect.width) * 100;
+                    const newY = ((e.clientY - rect.top) / rect.height) * 100;
+                    onDrag(item.id, Math.max(0, Math.min(100, newX)), Math.max(0, Math.min(100, newY)));
+                };
+                const handleUp = () => {
+                    setDragging(false);
+                    if (!dragRef.current.moved) onEdit(item);
+                };
+                document.addEventListener('mousemove', handleMove);
+                document.addEventListener('mouseup', handleUp);
+                return () => {
+                    document.removeEventListener('mousemove', handleMove);
+                    document.removeEventListener('mouseup', handleUp);
+                };
+            }, [dragging]);
+
+            return { dragging, handleMouseDown };
+        }
+
+        function RootItem({ item, onEdit, onDelete, onDrag, containerRef }) {
+            const [hover, setHover] = useState(false);
+            const slot = ROOT_SLOTS.find(s => s.id === item.slotId);
+            const x = item.x ?? slot?.x ?? 50;
+            const y = item.y ?? slot?.y ?? 95;
+            const { dragging, handleMouseDown } = useDraggable({ item, containerRef, onDrag, onEdit });
+            return (
+                <div
+                    onMouseDown={handleMouseDown}
+                    onMouseEnter={() => setHover(true)}
+                    onMouseLeave={() => setHover(false)}
+                    style={{
+                        position: 'absolute', left: `${x}%`, top: `${y}%`,
+                        transform: `translate(-50%, -50%) scale(${dragging ? 1.05 : hover ? 1.03 : 1})`,
+                        background: 'linear-gradient(135deg, #B8896B, #A07958)',
+                        borderRadius: '10px', padding: '7px 13px',
+                        cursor: dragging ? 'grabbing' : 'grab',
+                        transition: dragging ? 'none' : 'transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s',
+                        boxShadow: dragging ? '0 12px 28px rgba(139,99,68,0.4)' : hover ? '0 4px 12px rgba(139,99,68,0.3)' : '0 2px 6px rgba(0,0,0,0.15)',
+                        zIndex: dragging ? 1000 : hover ? 100 : 10,
+                        maxWidth: '120px',
+                    }}
+                >
+                    <span style={{ color: 'white', fontSize: '13px', fontWeight: 500, letterSpacing: '0.01em', wordBreak: 'break-word', textAlign: 'center', display: 'block', pointerEvents: 'none', lineHeight: 1.3 }}>{item.text}</span>
+                    {hover && !dragging && <DeleteBtn onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} />}
+                </div>
+            );
+        }
+
+        function BranchItem({ item, onEdit, onDelete }) {
+            const [hover, setHover] = useState(false);
+            const slot = BRANCH_SLOTS.find(s => s.id === item.slotId);
+            if (!slot) return null;
+            return (
+                <div
+                    onMouseEnter={() => setHover(true)}
+                    onMouseLeave={() => setHover(false)}
+                    onClick={() => onEdit(item)}
+                    style={{
+                        position: 'absolute', left: `${slot.x}%`, top: `${slot.y}%`,
+                        transform: `translate(-50%, -50%) rotate(${slot.angle}deg) scale(${hover ? 1.05 : 1})`,
+                        background: 'linear-gradient(135deg, rgba(205,225,155,0.9), rgba(174,213,129,0.8))',
+                        backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+                        padding: '7px 16px', borderRadius: '999px', cursor: 'pointer',
+                        transition: 'transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s',
+                        boxShadow: hover ? '0 4px 12px rgba(139,175,92,0.35)' : '0 2px 6px rgba(0,0,0,0.12)',
+                        border: '1px solid rgba(255,255,255,0.4)',
+                        zIndex: hover ? 100 : 20,
+                    }}
+                >
+                    <span style={{ color: '#3D5228', fontSize: '12px', fontWeight: 600, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>{item.text}</span>
+                    {hover && <DeleteBtn onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} />}
+                </div>
+            );
+        }
+
+        function TrunkItem({ item, autoX, autoY, onEdit, onDelete, onDrag, containerRef }) {
+            const [hover, setHover] = useState(false);
+            const x = item.x ?? autoX;
+            const y = item.y ?? autoY;
+            const { dragging, handleMouseDown } = useDraggable({ item, containerRef, onDrag, onEdit });
+            return (
+                <div
+                    onMouseDown={handleMouseDown}
+                    onMouseEnter={() => setHover(true)}
+                    onMouseLeave={() => setHover(false)}
+                    style={{
+                        position: 'absolute', left: `${x}%`, top: `${y}%`,
+                        transform: `translate(-50%, -50%) scale(${dragging ? 1.05 : hover ? 1.03 : 1})`,
+                        background: 'linear-gradient(135deg, #7A8D6A, #5B6E4E)',
+                        borderRadius: '8px', padding: '5px 11px',
+                        cursor: dragging ? 'grabbing' : 'grab',
+                        transition: dragging ? 'none' : 'transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s',
+                        boxShadow: dragging ? '0 12px 28px rgba(91,110,78,0.4)' : hover ? '0 4px 12px rgba(91,110,78,0.3)' : '0 2px 6px rgba(0,0,0,0.15)',
+                        zIndex: dragging ? 1000 : hover ? 100 : 10,
+                        maxWidth: '110px',
+                    }}
+                >
+                    <span style={{ color: 'white', fontSize: '12px', fontWeight: 500, letterSpacing: '0.01em', textAlign: 'center', wordBreak: 'break-word', display: 'block', pointerEvents: 'none', lineHeight: 1.3 }}>{item.text}</span>
+                    {hover && !dragging && <DeleteBtn onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} />}
+                </div>
+            );
+        }
+
+        function FruitItem({ item, onEdit, onDelete, onHarvest, onDrag, containerRef }) {
+            const [hover, setHover] = useState(false);
+            const [menuOpen, setMenuOpen] = useState(false);
+            const harvested = !!item.harvested;
+            const { dragging, handleMouseDown } = useDraggable({
+                item, containerRef,
+                onDrag: (id, x, y) => { setMenuOpen(false); onDrag(id, x, y); },
+                onEdit: () => setMenuOpen(true),
+            });
+
+            useEffect(() => {
+                if (!menuOpen) return;
+                const close = () => setMenuOpen(false);
+                const t = setTimeout(() => document.addEventListener('mousedown', close), 0);
+                return () => { clearTimeout(t); document.removeEventListener('mousedown', close); };
+            }, [menuOpen]);
+
+            return (
+                <div
+                    onMouseDown={handleMouseDown}
+                    onMouseEnter={() => setHover(true)}
+                    onMouseLeave={() => setHover(false)}
+                    style={{
+                        position: 'absolute', left: `${item.x}%`, top: `${item.y}%`,
+                        transform: `translate(-50%, -50%) scale(${dragging ? 1.08 : hover ? 1.04 : 1})`,
+                        zIndex: dragging ? 1000 : (hover || menuOpen) ? 100 : 15,
+                    }}
+                >
+                    {/* Сам плод */}
+                    <div style={{
+                        position: 'relative',
+                        minWidth: '62px', minHeight: '62px',
+                        borderRadius: '50%',
+                        background: harvested
+                            ? 'radial-gradient(circle at 32% 28%, #C9A89B 0%, #B0897C 55%, #8F6A5C 100%)'
+                            : 'radial-gradient(circle at 32% 28%, #F2A088 0%, #E8876B 55%, #C76A4F 100%)',
+                        padding: '10px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: dragging ? 'grabbing' : 'grab',
+                        transition: dragging ? 'none' : 'transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s, background 0.3s',
+                        boxShadow: dragging ? '0 16px 32px rgba(199,106,79,0.45)' : hover ? '0 6px 18px rgba(199,106,79,0.35)' : '0 3px 8px rgba(0,0,0,0.18)',
+                        opacity: harvested ? 0.92 : 1,
+                        WebkitMaskImage: harvested ? 'radial-gradient(circle at 86% 16%, transparent 13px, black 13.5px)' : 'none',
+                        maskImage: harvested ? 'radial-gradient(circle at 86% 16%, transparent 13px, black 13.5px)' : 'none',
+                    }}>
+                        <span style={{
+                            color: 'white', fontSize: '11px', fontWeight: 600, letterSpacing: '0.01em',
+                            textAlign: 'center', textShadow: '0 1px 2px rgba(139,50,30,0.3)',
+                            wordBreak: 'break-word', maxWidth: '72px', lineHeight: 1.25, pointerEvents: 'none',
+                            textDecoration: harvested ? 'line-through' : 'none',
+                            opacity: harvested ? 0.85 : 1,
+                        }}>{item.text}</span>
+                    </div>
+
+                    {/* Галочка для сорванного */}
+                    {harvested && (
+                        <div style={{
+                            position: 'absolute',
+                            bottom: '-4px', left: '-4px',
+                            width: '22px', height: '22px',
+                            borderRadius: '50%',
+                            background: '#5B8C4A',
+                            border: '2px solid white',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+                            pointerEvents: 'none',
+                        }}>
+                            <span style={{ color: 'white', fontSize: '12px', fontWeight: 700, lineHeight: 1 }}>✓</span>
+                        </div>
+                    )}
+
+                    {hover && !dragging && !menuOpen && <DeleteBtn onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} />}
+
+                    {/* Мини-меню действий */}
+                    {menuOpen && (
+                        <div
+                            onMouseDown={(e) => e.stopPropagation()}
+                            style={{
+                                position: 'absolute',
+                                top: 'calc(100% + 8px)',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                background: 'white',
+                                borderRadius: '10px',
+                                border: '1px solid var(--line)',
+                                boxShadow: '0 8px 24px rgba(43,42,38,0.18)',
+                                padding: '4px',
+                                zIndex: 1100,
+                                minWidth: '150px',
+                                animation: 'scaleIn 0.12s',
+                            }}
+                        >
+                            <FruitMenuItem onClick={() => { onEdit(item); setMenuOpen(false); }}>Редактировать</FruitMenuItem>
+                            <FruitMenuItem
+                                onClick={() => { onHarvest(item.id); setMenuOpen(false); }}
+                                accent={!harvested}
+                            >
+                                {harvested ? 'Вернуть (не сорван)' : '🍂 Сорвать плод'}
+                            </FruitMenuItem>
+                            <div style={{ height: '1px', background: 'var(--line)', margin: '4px 0' }} />
+                            <FruitMenuItem onClick={() => { onDelete(item.id); setMenuOpen(false); }} danger>Удалить</FruitMenuItem>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function FruitMenuItem({ onClick, children, danger, accent }) {
+            const [hover, setHover] = useState(false);
+            return (
+                <button
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={onClick}
+                    onMouseEnter={() => setHover(true)}
+                    onMouseLeave={() => setHover(false)}
+                    style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        background: hover ? (danger ? 'rgba(220,80,80,0.06)' : accent ? 'rgba(199,106,79,0.08)' : 'rgba(0,0,0,0.04)') : 'transparent',
+                        color: danger ? '#C43B3B' : accent ? 'var(--coral-dark)' : 'var(--ink)',
+                        border: 'none', borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontFamily: 'Manrope, sans-serif',
+                        fontSize: '12px', fontWeight: accent ? 600 : 500,
+                        textAlign: 'left',
+                        transition: 'background 0.1s',
+                    }}
+                >{children}</button>
+            );
+        }
+
+        // ===== ВСПЛЫВАЮЩАЯ ПОДСКАЗКА (popover) ДЛЯ КНОПОК =====
+        function InfoPopover({ zone, onClose, onShowExample, anchorRef }) {
+            const popRef = useRef(null);
+            useEffect(() => {
+                const handler = (e) => {
+                    if (popRef.current && !popRef.current.contains(e.target)) {
+                        // Игнорируем клики по самой иконке-якорю — пусть toggle отрабатывает кнопка
+                        if (anchorRef && anchorRef.current && anchorRef.current.contains(e.target)) return;
+                        onClose();
+                    }
+                };
+                setTimeout(() => document.addEventListener('mousedown', handler), 0);
+                return () => document.removeEventListener('mousedown', handler);
+            }, []);
+            const info = ZONE_INFO[zone];
+            return (
+                <div ref={popRef} style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    width: '296px',
+                    background: 'white',
+                    borderRadius: '12px',
+                    border: '1px solid var(--line)',
+                    boxShadow: '0 12px 32px rgba(43,42,38,0.15)',
+                    padding: '16px',
+                    zIndex: 500,
+                    animation: 'scaleIn 0.15s cubic-bezier(0.4,0,0.2,1)',
+                    transformOrigin: 'top right',
+                }}>
+                    <div style={{
+                        position: 'absolute',
+                        top: '-6px',
+                        right: '20px',
+                        width: '12px',
+                        height: '12px',
+                        background: 'white',
+                        borderTop: '1px solid var(--line)',
+                        borderLeft: '1px solid var(--line)',
+                        transform: 'rotate(45deg)',
+                    }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: info.bg }} />
+                        <span className="serif" style={{ fontSize: '15px', fontWeight: 500, color: 'var(--ink)' }}>
+                            {info.name}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--ink-muted)', marginLeft: 'auto' }}>{info.tagline}</span>
+                    </div>
+                    <p style={{ fontSize: '13px', color: 'var(--ink-soft)', lineHeight: 1.55, marginBottom: '12px' }}>
+                        {DEFINITIONS[zone]}
+                    </p>
+                    <button
+                        onClick={onShowExample}
+                        style={{
+                            background: 'transparent',
+                            color: 'var(--accent)',
+                            border: 'none',
+                            padding: 0,
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            fontFamily: 'Manrope, sans-serif',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                        }}
+                    >
+                        Показать пример →
+                    </button>
+                </div>
+            );
+        }
+
+        // ===== МОДАЛКА ПРИМЕРА =====
+        function ExampleModal({ zone, onClose }) {
+            const ex = EXAMPLES[zone];
+            const info = ZONE_INFO[zone];
+            return (
+                <div style={{
+                    position: 'absolute', inset: 0,
+                    background: 'rgba(20,30,45,0.55)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 1000,
+                    animation: 'fadeIn 0.2s',
+                }} onClick={onClose}>
+                    <div onClick={(e) => e.stopPropagation()} style={{
+                        background: 'var(--cream)',
+                        borderRadius: '16px',
+                        maxWidth: '520px',
+                        width: '90%',
+                        maxHeight: '80vh',
+                        overflowY: 'auto',
+                        padding: '32px',
+                        animation: 'scaleIn 0.25s cubic-bezier(0.4,0,0.2,1)',
+                        boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+                    }} className="scrollable">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: info.bg }} />
+                            <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-muted)', fontWeight: 600 }}>
+                                Пример · {info.name}
+                            </span>
+                        </div>
+                        <h2 className="serif" style={{ fontSize: '24px', fontWeight: 500, color: 'var(--ink)', marginBottom: '20px', lineHeight: 1.2 }}>
+                            {ex.title}
+                        </h2>
+                        {ex.body.map((p, i) => (
+                            <p key={i} style={{
+                                fontSize: '14px',
+                                color: 'var(--ink-soft)',
+                                lineHeight: 1.65,
+                                marginBottom: '12px',
+                                fontStyle: p.startsWith('—') ? 'normal' : 'normal',
+                                paddingLeft: p.startsWith('—') ? '16px' : 0,
+                            }}>
+                                {p}
+                            </p>
+                        ))}
+                        <button onClick={onClose} style={{
+                            marginTop: '16px',
+                            padding: '10px 20px',
+                            background: 'var(--ink)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontFamily: 'Manrope, sans-serif',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                        }}>Понятно</button>
+                    </div>
+                </div>
+            );
+        }
+
+        // ===== WELCOME-МОДАЛКА =====
+        function WelcomeModal({ onClose }) {
+            return (
+                <div style={{
+                    position: 'absolute', inset: 0,
+                    background: 'rgba(20,30,45,0.55)',
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 2000,
+                    animation: 'fadeIn 0.3s',
+                }}>
+                    <div style={{
+                        background: 'var(--cream)',
+                        borderRadius: '20px',
+                        maxWidth: '540px',
+                        width: '90%',
+                        padding: '40px 44px',
+                        animation: 'scaleIn 0.35s cubic-bezier(0.4,0,0.2,1)',
+                        boxShadow: '0 30px 60px rgba(0,0,0,0.3)',
+                        textAlign: 'center',
+                    }}>
+                        <div className="serif" style={{ fontSize: '15px', fontStyle: 'italic', color: 'var(--ink-muted)', marginBottom: '4px' }}>
+                            Опора — не ресурс, а ресурс — не цель
+                        </div>
+                        <h1 className="serif" style={{ fontSize: '36px', fontWeight: 500, color: 'var(--ink)', marginBottom: '24px', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+                            Дерево Опоры
+                        </h1>
+                        <div style={{ textAlign: 'left' }}>
+                            <p style={{ fontSize: '15px', color: 'var(--ink-soft)', lineHeight: 1.7, marginBottom: '14px' }}>
+                                Большинство из нас живёт целями, которые подсказали извне — родители, культура, лента. Внутренний компас при этом замолкает и ослабевает связь с собой.
+                            </p>
+                            <p style={{ fontSize: '15px', color: 'var(--ink-soft)', lineHeight: 1.7, marginBottom: '14px' }}>
+                                Это дерево — способ услышать его снова и восстановить контакт с внутренним миром. Здесь ты увидишь себя с разных сторон: на чём ты стоишь, что у тебя уже есть, куда направлено внимание, и какие плоды действительно твои.
+                            </p>
+                            <p style={{ fontSize: '15px', color: 'var(--ink-soft)', lineHeight: 1.7, marginBottom: '20px' }}>
+                                Заполняй медленно, вдумчиво. Прислушивайся к телу — там, где приятный отклик, и есть истинно твоё.
+                            </p>
+                            <p className="serif" style={{ fontSize: '14px', fontStyle: 'italic', color: 'var(--ink-muted)', lineHeight: 1.6, padding: '14px 18px', background: 'rgba(184,137,107,0.08)', borderRadius: '12px', borderLeft: '2px solid var(--terracotta)' }}>
+                                Как и настоящее дерево: крона не вырастет шире, чем позволяют корни, а слабый ствол не выдержит вес плодов.
+                            </p>
+                            <p style={{ fontSize: '13px', color: 'var(--ink-muted)', lineHeight: 1.6, marginTop: '14px' }}>
+                                Возвращайся к дереву. Реальность меняется, и дерево меняется вместе с ней. Так оно остаётся живым, а не превращается в галочку.
+                            </p>
+                        </div>
+                        <button onClick={onClose} style={{
+                            marginTop: '28px',
+                            padding: '12px 28px',
+                            background: 'var(--ink)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            fontFamily: 'Manrope, sans-serif',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            letterSpacing: '0.01em',
+                            transition: 'background 0.15s, transform 0.15s',
+                        }}
+                        onMouseEnter={(e) => { e.target.style.background = '#000'; e.target.style.transform = 'translateY(-1px)'; }}
+                        onMouseLeave={(e) => { e.target.style.background = 'var(--ink)'; e.target.style.transform = 'none'; }}
+                        >Понятно, начнём</button>
+                    </div>
+                </div>
+            );
+        }
+
+        // ===== ЛЕВАЯ ПАНЕЛЬ С ВОПРОСАМИ =====
+        function QuestionsDrawer({ open, onClose }) {
+            const [activeZone, setActiveZone] = useState('roots');
+            const [openSection, setOpenSection] = useState('start');
+
+            useEffect(() => { setOpenSection('start'); }, [activeZone]);
+
+            const SECTIONS = {
+                start: { label: 'С чего начать', icon: '·' },
+                deep:  { label: 'Чтобы копнуть глубже', icon: '··' },
+                body:  { label: 'Тело подсказывает', icon: '◯' },
+            };
+
+            return (
+                <>
+                    {open && (
+                        <div onClick={onClose} style={{
+                            position: 'absolute', inset: 0,
+                            background: 'rgba(0,0,0,0.15)',
+                            zIndex: 400,
+                            animation: 'fadeIn 0.2s',
+                        }} />
+                    )}
+                    <div style={{
+                        position: 'absolute',
+                        top: 0, left: 0, bottom: 0,
+                        width: '380px',
+                        background: 'var(--cream)',
+                        borderRight: '1px solid var(--line)',
+                        transform: open ? 'translateX(0)' : 'translateX(-100%)',
+                        transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
+                        zIndex: 450,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        boxShadow: open ? '4px 0 24px rgba(0,0,0,0.08)' : 'none',
+                    }}>
+                        <div style={{
+                            padding: '20px 24px 16px',
+                            borderBottom: '1px solid var(--line)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                        }}>
+                            <div>
+                                <h3 className="serif" style={{ fontSize: '20px', fontWeight: 500, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+                                    Вопросы для рефлексии
+                                </h3>
+                                <p style={{ fontSize: '12px', color: 'var(--ink-muted)', marginTop: '2px' }}>
+                                    Не торопись. Прислушивайся.
+                                </p>
+                            </div>
+                            <button onClick={onClose} style={{
+                                width: '28px', height: '28px',
+                                borderRadius: '50%',
+                                border: '1px solid var(--line)',
+                                background: 'white',
+                                cursor: 'pointer',
+                                color: 'var(--ink-soft)',
+                                fontSize: '14px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>×</button>
+                        </div>
+
+                        <div style={{
+                            display: 'flex',
+                            padding: '0 12px',
+                            borderBottom: '1px solid var(--line)',
+                            gap: '4px',
+                        }}>
+                            {Object.entries(ZONE_INFO).map(([z, info]) => (
+                                <button
+                                    key={z}
+                                    onClick={() => setActiveZone(z)}
+                                    style={{
+                                        padding: '12px 10px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderBottom: activeZone === z ? `2px solid ${info.bg}` : '2px solid transparent',
+                                        color: activeZone === z ? 'var(--ink)' : 'var(--ink-muted)',
+                                        cursor: 'pointer',
+                                        fontFamily: 'Manrope, sans-serif',
+                                        fontSize: '12px',
+                                        fontWeight: activeZone === z ? 600 : 500,
+                                        flex: 1,
+                                        transition: 'color 0.15s, border-color 0.2s',
+                                        marginBottom: '-1px',
+                                    }}
+                                >
+                                    {info.name}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="scrollable" style={{ flex: 1, padding: '16px 24px' }}>
+                            <p style={{
+                                fontSize: '12px',
+                                color: 'var(--ink-muted)',
+                                fontStyle: 'italic',
+                                marginBottom: '16px',
+                                paddingBottom: '12px',
+                                borderBottom: '1px dashed var(--line)',
+                            }}>
+                                {ZONE_INFO[activeZone].tagline}
+                            </p>
+
+                            {Object.entries(SECTIONS).map(([key, sec]) => {
+                                const items = QUESTIONS[activeZone][key];
+                                const isOpen = openSection === key;
+                                return (
+                                    <div key={key} style={{ marginBottom: '8px' }}>
+                                        <button
+                                            onClick={() => setOpenSection(isOpen ? null : key)}
+                                            style={{
+                                                width: '100%',
+                                                padding: '12px 14px',
+                                                background: isOpen ? 'white' : 'transparent',
+                                                border: '1px solid',
+                                                borderColor: isOpen ? 'var(--line)' : 'transparent',
+                                                borderRadius: '10px',
+                                                cursor: 'pointer',
+                                                fontFamily: 'Manrope, sans-serif',
+                                                fontSize: '13px',
+                                                fontWeight: 500,
+                                                color: 'var(--ink)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                textAlign: 'left',
+                                                transition: 'background 0.15s, border 0.15s',
+                                            }}
+                                            onMouseEnter={(e) => !isOpen && (e.currentTarget.style.background = 'rgba(0,0,0,0.02)')}
+                                            onMouseLeave={(e) => !isOpen && (e.currentTarget.style.background = 'transparent')}
+                                        >
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <span style={{
+                                                    width: '20px',
+                                                    color: 'var(--ink-muted)',
+                                                    fontSize: '11px',
+                                                    fontFamily: 'Fraunces, serif',
+                                                }}>{sec.icon}</span>
+                                                {sec.label}
+                                            </span>
+                                            <span style={{
+                                                color: 'var(--ink-muted)',
+                                                fontSize: '12px',
+                                                transform: isOpen ? 'rotate(180deg)' : 'none',
+                                                transition: 'transform 0.2s',
+                                            }}>▾</span>
+                                        </button>
+                                        {isOpen && (
+                                            <ul style={{
+                                                listStyle: 'none',
+                                                padding: '8px 14px 4px 44px',
+                                                animation: 'fadeIn 0.2s',
+                                            }}>
+                                                {items.map((q, i) => (
+                                                    <li key={i} style={{
+                                                        fontSize: '13px',
+                                                        color: 'var(--ink-soft)',
+                                                        lineHeight: 1.6,
+                                                        padding: '6px 0',
+                                                    }}>{q}</li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {!open && (
+                        <button
+                            onClick={() => onClose && onClose(true)}
+                            style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                width: '32px',
+                                height: '110px',
+                                background: 'rgba(253,251,247,0.92)',
+                                backdropFilter: 'blur(8px)',
+                                WebkitBackdropFilter: 'blur(8px)',
+                                border: '1px solid var(--line)',
+                                borderLeft: 'none',
+                                borderRadius: '0 12px 12px 0',
+                                cursor: 'pointer',
+                                color: 'var(--ink-soft)',
+                                fontSize: '11px',
+                                fontWeight: 500,
+                                fontFamily: 'Manrope, sans-serif',
+                                writingMode: 'vertical-rl',
+                                transform: 'translateY(-50%) rotate(180deg)',
+                                letterSpacing: '0.08em',
+                                zIndex: 350,
+                                transition: 'background 0.15s, padding 0.15s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '2px 0 8px rgba(0,0,0,0.04)',
+                            }}
+                            onMouseEnter={(e) => { e.target.style.background = 'white'; }}
+                            onMouseLeave={(e) => { e.target.style.background = 'rgba(253,251,247,0.92)'; }}
+                        >
+                            Вопросы для рефлексии
+                        </button>
+                    )}
+                </>
+            );
+        }
+
+        // ===== СТРАНИЦА «О ПОДХОДЕ» =====
+        function AboutPage({ onClose }) {
+            return (
+                <div style={{
+                    position: 'absolute', inset: 0,
+                    background: 'var(--cream)',
+                    zIndex: 1500,
+                    overflowY: 'auto',
+                    animation: 'fadeIn 0.25s',
+                }} className="scrollable">
+                    <div style={{
+                        position: 'sticky', top: 0,
+                        background: 'rgba(253,251,247,0.92)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        borderBottom: '1px solid var(--line)',
+                        padding: '16px 32px',
+                        zIndex: 10,
+                    }}>
+                        <button onClick={onClose} style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--ink-soft)',
+                            cursor: 'pointer',
+                            fontFamily: 'Manrope, sans-serif',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.04)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                        >← К дереву</button>
+                    </div>
+
+                    <article style={{ maxWidth: '680px', margin: '0 auto', padding: '48px 32px 80px' }}>
+                        <p className="serif" style={{ fontSize: '14px', fontStyle: 'italic', color: 'var(--ink-muted)', marginBottom: '8px' }}>
+                            Опора — не ресурс, а ресурс — не цель
+                        </p>
+                        <h1 className="serif" style={{ fontSize: '44px', fontWeight: 500, color: 'var(--ink)', marginBottom: '40px', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+                            О подходе
+                        </h1>
+
+                        <Section title="Зачем дерево">
+                            <p>Нас не учат слышать себя. Мы живём по требованиям и ожиданиям мира — и постепенно учимся игнорировать собственные сигналы ради внешнего. Это дерево помогает увидеть себя с разных углов и придумать, как проявить это понимание в реальной жизни.</p>
+                            <p>Дерево — это не цель, это <em>отпечаток</em>. На уровне головы и эмоций ты смотришь на себя через осознанность и вопросы, формулируешь путь к тому, что приближает тебя к счастью. Реальный путь может отличаться — но твой главный инструмент, мозг, теперь знает твои настоящие желания. На пути ты сможешь опираться на эти мысли и чувства, когда станет сложно или страшно.</p>
+                        </Section>
+
+                        <Section title="Как устроено дерево">
+                            <p className="serif" style={{ fontSize: '17px', fontStyle: 'italic', color: 'var(--ink-soft)', padding: '16px 20px', background: 'rgba(184,137,107,0.08)', borderRadius: '12px', borderLeft: '2px solid var(--terracotta)', margin: '8px 0 16px' }}>
+                                Крона не вырастает шире, чем позволяют корни. Ствол не может включать ресурсы, выходящие за пределы того, каким ты себя ощущаешь. Корни не питают конструкцию, если ты не видишь, как опираешься на них в разных ситуациях. Всё связано.
+                            </p>
+                            <p><strong>Корни</strong> — то, на что ты опирался, опираешься и будешь опираться. Родители, друзья, опыт боли, после которой ты стал сильнее. В домиках внизу дерева ты собираешь эти опоры, видишь, как они помогали, замечаешь связь с твоими мечтами.</p>
+                            <p><strong>Ствол</strong> держится прочно за счёт корней. Это твои актуальные ресурсы: победы, поражения, работа, деньги, качества, которые укрепляют опору на себя — те, которыми гордишься и открыто проявляешь, и те, что прячешь или хочешь трансформировать. Ствол — это видимая, честная картина «что у меня сейчас есть, без деления на хорошо или плохо, просто как есть, без оценок».</p>
+                            <p><strong>Крона</strong> растёт настолько, насколько ты ухаживаешь за корнями и направляешь свет внимания на дерево. Корни уходят глубже, когда ты замечаешь моменты опоры. Крона расширяется, когда ты признаёшь свои ресурсы. Плоды зреют, когда ты понимаешь: «у меня есть или будет время, желание и ресурс для этого».</p>
+                        </Section>
+
+                        <Section title="На каких подходах основано">
+                            <ResearchCard num="1" title="ACT — Acceptance & Commitment Therapy" body="Терапия третьей волны: принятие, осознанность, ясность ценностей, действие из ценностей. Корни ↔ ценности, Ствол ↔ принятие реальности, Ветки и Плоды ↔ committed action. Мета-анализ 65 исследований (Springer, 2025) показал умеренный эффект ACT (Hedges' g = 0.72) на снижение тревоги и депрессии и рост психологической гибкости." />
+                            <ResearchCard num="2" title="Implementation Intentions" body="Формулировка целей в формате «когда X, то Y» удваивает шанс их достижения. Мета-анализ 94 исследований Голвитцера и Шерана показал эффект d = 0.65 (medium-to-large). Поэтому плоды формулируются конкретно — с местом, временем и ресурсом." />
+                            <ResearchCard num="3" title="Self-compassion (Кристин Нефф)" body="Заполнять дерево нужно с теплом к себе, без самокритики. Мета-анализ 56 RCT (Mindfulness, 2023) подтвердил, что self-compassion интервенции снижают депрессию, тревогу и стресс. Корни — это инструмент самосострадания: «у меня есть на что опереться»." />
+                            <ResearchCard num="4" title="Интроспекция и интероцепция — взгляд внутрь" body="Дерево раскрывается полнее, когда заполняешь его, заглядывая внутрь, а не на автомате. Интроспекция — это наблюдение за своими мыслями, ценностями и чувствами; она отвечает на вопрос «что я думаю и чувствую». Интероцепция — способность слышать сигналы тела: «где это живёт и есть ли настоящий отклик». Вместе они защищают от того, чтобы заполнить дерево чужими, заученными ответами. Систематический обзор (Frontiers, 2020) показал: чем выше осознанность тела, тем эффективнее регуляция эмоций. Поэтому в каждой зоне есть вопрос «что говорит тело»." />
+                        </Section>
+
+                        <Section title="Дерево живое">
+                            <p>Дерево не делается один раз и навсегда. Реальность меняется — у тебя появляются новые ресурсы, что-то отпадает, фокус смещается. Возвращайся к дереву, когда чувствуешь, что внутри что-то сдвинулось.</p>
+                            <p>Посмотри на ствол: всё ли ещё работает на тебя? Глянь на ветки фокуса — энергия идёт туда же или сместилась? Какие плоды стали ближе, какие отвалились, какие новые проявились?</p>
+                            <p>Это не отчётность. Это способ оставаться в контакте с собой по мере того, как ты меняешься. Дерево, которое отражает реальность, помогает. Дерево-галочка, которое стоит без движения — нет.</p>
+                        </Section>
+
+                        <Section title="Если хочется глубже">
+                            <ul style={{ listStyle: 'none', padding: 0 }}>
+                                {[
+                                    ['ACT в практике', 'Russ Harris — «Ловушка счастья»'],
+                                    ['Self-compassion', 'Kristin Neff — «Самосострадание»'],
+                                    ['Тело и нервная система', 'Deb Dana — «Тело на твоей стороне»'],
+                                    ['Постановка целей', 'Peter Gollwitzer — статьи об implementation intentions'],
+                                ].map(([k, v], i) => (
+                                    <li key={i} style={{
+                                        padding: '14px 0',
+                                        borderBottom: '1px solid var(--line-soft)',
+                                        display: 'flex',
+                                        gap: '20px',
+                                    }}>
+                                        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--ink)', minWidth: '160px' }}>{k}</span>
+                                        <span style={{ fontSize: '14px', color: 'var(--ink-soft)' }}>{v}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </Section>
+
+                        {/* === ОТ АВТОРА === */}
+                        <section style={{
+                            marginTop: '56px',
+                            padding: '32px 28px',
+                            background: 'rgba(184,137,107,0.06)',
+                            borderRadius: '16px',
+                            borderLeft: '2px solid var(--terracotta)',
+                        }}>
+                            <div style={{
+                                fontSize: '11px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.08em',
+                                color: 'var(--terracotta-dark)',
+                                fontWeight: 600,
+                                marginBottom: '20px',
+                            }}>
+                                От автора
+                            </div>
+                            <div style={{ fontSize: '15px', color: 'var(--ink-soft)', lineHeight: 1.75 }}>
+                                <p style={{ marginBottom: '16px' }}>
+                                    Я долго жил целями, которые казались моими, а на деле были подсказаны извне — тем, что я «должен» хотеть, тем, как принято, тем, что одобряют рядом. В какой-то момент стало невозможно проживать жизнь дальше.
+                                </p>
+                                <p style={{ marginBottom: '16px' }}>
+                                    Один из навыков, которые помогли — отделять своё от чужого. Доверять сигналам тела, давать им приоритет, осознанно выбирать и действовать из внутреннего отклика. Когда учишься слышать себя и учитывать, начинаешь видеть, как это меняет жизнь к лучшему — и тогда самому хочется светить фонариком в тёмные углы вместо того, чтобы их избегать, даже если избегать по привычке комфортно. И тогда становится сложнее обманывать себя и делать вид, что всё как хочется — яснее прорисовываются желания, потребности, ценности. Так началась более полная жизнь — вместо её проживания. Когда впервые ощущаешь эту разницу в качестве жизни и ежедневном состоянии, начинаются знакомство с собой на глубинном уровне и отношения с собой как с опорой.
+                                </p>
+                                <p style={{ marginBottom: '16px' }}>
+                                    Мне важно, чтобы у людей был способ думать и решать самим — не вместо терапевта, не вместо коуча, а как личная практика, в которую можно вернуться, когда захочется. Если оно сработает для тебя — буду рад.
+                                </p>
+                                <p style={{ marginBottom: '20px' }}>
+                                    Если дерево откликнулось и захочется глубже — пиши, я рядом:{' '}
+                                    <a href="https://t.me/snowvb" target="_blank" rel="noopener noreferrer" style={{
+                                        color: 'var(--terracotta-dark)',
+                                        textDecoration: 'none',
+                                        fontWeight: 600,
+                                        borderBottom: '1px solid rgba(139,99,68,0.3)',
+                                    }}>@snowvb</a>
+                                </p>
+                                <p className="serif" style={{
+                                    fontSize: '15px',
+                                    fontStyle: 'italic',
+                                    color: 'var(--ink-muted)',
+                                    marginTop: '24px',
+                                    textAlign: 'right',
+                                }}>
+                                    — Вячеслав, коуч по самоопоре
+                                </p>
+                            </div>
+                        </section>
+
+                        <div style={{
+                            marginTop: '60px',
+                            padding: '24px',
+                            background: 'white',
+                            borderRadius: '14px',
+                            border: '1px solid var(--line)',
+                            textAlign: 'center',
+                        }}>
+                            <p style={{ fontSize: '13px', color: 'var(--ink-muted)', marginBottom: '12px' }}>
+                                Готов вернуться к работе с деревом?
+                            </p>
+                            <button onClick={onClose} style={{
+                                padding: '10px 24px',
+                                background: 'var(--ink)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontFamily: 'Manrope, sans-serif',
+                                fontSize: '13px',
+                                fontWeight: 500,
+                            }}>← К дереву</button>
+                        </div>
+                    </article>
+                </div>
+            );
+        }
+
+        function Section({ title, children }) {
+            return (
+                <section style={{ marginBottom: '40px' }}>
+                    <h2 className="serif" style={{ fontSize: '24px', fontWeight: 500, color: 'var(--ink)', marginBottom: '16px', letterSpacing: '-0.01em' }}>
+                        {title}
+                    </h2>
+                    <div style={{ fontSize: '15px', color: 'var(--ink-soft)', lineHeight: 1.75 }}>
+                        {React.Children.map(children, (child, i) => 
+                            React.isValidElement(child) ? child : <p key={i} style={{ marginBottom: '14px' }}>{child}</p>
+                        )}
+                    </div>
+                </section>
+            );
+        }
+
+        function ResearchCard({ num, title, body }) {
+            return (
+                <div style={{
+                    padding: '18px 20px',
+                    background: 'white',
+                    borderRadius: '12px',
+                    border: '1px solid var(--line)',
+                    marginBottom: '12px',
+                    display: 'flex',
+                    gap: '16px',
+                }}>
+                    <div className="serif" style={{ fontSize: '24px', color: 'var(--ink-muted)', fontWeight: 500, lineHeight: 1, minWidth: '24px' }}>
+                        {num}
+                    </div>
+                    <div>
+                        <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink)', marginBottom: '6px' }}>
+                            {title}
+                        </h4>
+                        <p style={{ fontSize: '13px', color: 'var(--ink-soft)', lineHeight: 1.6 }}>
+                            {body}
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        // ===== AddButton С ⓘ =====
+        function AddButton({ zone, info, count, limit, harvested, onClick, onInfo, popoverOpen, disabled, onShowExample }) {
+            const [hover, setHover] = useState(false);
+            const buttonRef = useRef(null);
+            const infoIconRef = useRef(null);
+            return (
+                <div ref={buttonRef} style={{ position: 'relative' }}>
+                    <button
+                        onClick={onClick}
+                        onMouseEnter={() => setHover(true)}
+                        onMouseLeave={() => setHover(false)}
+                        disabled={disabled}
+                        style={{
+                            width: '100%',
+                            padding: '12px 14px',
+                            background: disabled ? '#EFEAE0' : hover ? 'white' : '#FAF6EC',
+                            color: disabled ? 'var(--ink-muted)' : 'var(--ink)',
+                            border: `1px solid ${hover && !disabled ? 'var(--line)' : 'transparent'}`,
+                            borderRadius: '12px',
+                            cursor: disabled ? 'not-allowed' : 'pointer',
+                            fontFamily: 'Manrope, sans-serif',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            display: 'flex', alignItems: 'center', gap: '10px',
+                            transition: 'background 0.15s, border 0.15s, transform 0.15s',
+                            transform: hover && !disabled ? 'translateY(-1px)' : 'none',
+                            textAlign: 'left',
+                            boxShadow: hover && !disabled ? '0 1px 3px rgba(0,0,0,0.05)' : 'none',
+                            opacity: disabled ? 0.6 : 1,
+                        }}
+                    >
+                        <span style={{
+                            width: '28px', height: '28px',
+                            borderRadius: '8px',
+                            background: info.bg, color: 'white',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '16px', fontWeight: 600, flexShrink: 0,
+                        }}>+</span>
+                        <span style={{ flex: 1 }}>{info.label}</span>
+                        <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ink-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                            {harvested > 0 && (
+                                <span style={{ color: '#5B8C4A', fontWeight: 600 }}>✓{harvested} · </span>
+                            )}
+                            {count}{limit ? `/${limit}` : ''}
+                        </span>
+                        <span
+                            ref={infoIconRef}
+                            onClick={(e) => { e.stopPropagation(); onInfo(); }}
+                            style={{
+                                width: '20px', height: '20px',
+                                borderRadius: '50%',
+                                background: popoverOpen ? 'var(--line)' : 'transparent',
+                                color: 'var(--ink-muted)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '11px', fontWeight: 600,
+                                cursor: 'help',
+                                transition: 'background 0.15s, color 0.15s',
+                                fontFamily: 'Fraunces, serif',
+                                fontStyle: 'italic',
+                            }}
+                            onMouseEnter={(e) => { e.target.style.background = 'var(--line)'; e.target.style.color = 'var(--ink)'; }}
+                            onMouseLeave={(e) => { if (!popoverOpen) { e.target.style.background = 'transparent'; e.target.style.color = 'var(--ink-muted)'; } }}
+                        >i</span>
+                    </button>
+                    {popoverOpen && (
+                        <InfoPopover
+                            zone={zone}
+                            anchorRef={infoIconRef}
+                            onClose={() => onInfo()}
+                            onShowExample={() => { onShowExample(); onInfo(); }}
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        // ===== TOAST (мягкая подсказка) =====
+        function Toast({ title, body, onClose }) {
+            return (
+                <div style={{
+                    position: 'absolute',
+                    bottom: '24px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(43,42,38,0.95)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    borderRadius: '12px',
+                    padding: '14px 18px',
+                    color: 'white',
+                    minWidth: '280px',
+                    maxWidth: '420px',
+                    boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
+                    zIndex: 1500,
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px',
+                    animation: 'fadeIn 0.2s',
+                }}>
+                    <div style={{ flex: 1 }}>
+                        <div style={{
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            color: 'rgba(255,255,255,0.95)',
+                            marginBottom: '2px',
+                        }}>{title}</div>
+                        <div style={{
+                            fontSize: '12px',
+                            color: 'rgba(255,255,255,0.7)',
+                            lineHeight: 1.5,
+                        }}>{body}</div>
+                    </div>
+                    <button onClick={onClose} style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'rgba(255,255,255,0.5)',
+                        cursor: 'pointer',
+                        padding: '0 4px',
+                        fontSize: '16px',
+                        lineHeight: 1,
+                    }}>×</button>
+                </div>
+            );
+        }
+
+        // ===== ДИАЛОГ ГОРИЗОНТА =====
+        function HorizonDialog({ currentValue, onChoose, onClose, isFirstTime }) {
+            const options = [
+                { value: '6m',  label: '6 месяцев', hint: 'короткий цикл, быстрая обратная связь' },
+                { value: '1y',  label: '1 год',     hint: 'привычный горизонт планирования' },
+                { value: '3y',  label: '3 года',    hint: 'долгий путь, серьёзные изменения' },
+            ];
+            return (
+                <div style={{
+                    position: 'absolute', inset: 0,
+                    background: 'rgba(20,30,45,0.55)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 1800,
+                    animation: 'fadeIn 0.2s',
+                }} onClick={onClose}>
+                    <div onClick={(e) => e.stopPropagation()} style={{
+                        background: 'var(--cream)',
+                        borderRadius: '18px',
+                        maxWidth: '520px',
+                        width: '90%',
+                        maxHeight: '85vh',
+                        overflowY: 'auto',
+                        padding: '32px 36px',
+                        animation: 'scaleIn 0.25s cubic-bezier(0.4,0,0.2,1)',
+                        boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+                    }} className="scrollable">
+                        <div style={{
+                            fontSize: '11px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.08em',
+                            color: 'var(--ink-muted)',
+                            fontWeight: 600,
+                            marginBottom: '6px',
+                        }}>
+                            {isFirstTime ? 'Перед тем как добавить плод' : 'Период реализации'}
+                        </div>
+                        <h2 className="serif" style={{
+                            fontSize: '26px',
+                            fontWeight: 500,
+                            color: 'var(--ink)',
+                            marginBottom: '18px',
+                            lineHeight: 1.2,
+                            letterSpacing: '-0.01em',
+                        }}>
+                            На какой срок ты сейчас смотришь?
+                        </h2>
+                        <p style={{
+                            fontSize: '14px',
+                            color: 'var(--ink-soft)',
+                            lineHeight: 1.65,
+                            marginBottom: '14px',
+                        }}>
+                            Прежде чем выбрать, прикинь — это поможет остаться в реальности и не напланировать слишком много.
+                        </p>
+                        <ul style={{
+                            listStyle: 'none',
+                            padding: 0,
+                            marginBottom: '20px',
+                            background: 'rgba(184,137,107,0.06)',
+                            borderRadius: '12px',
+                            padding: '14px 18px',
+                        }}>
+                            {[
+                                'Какой у тебя сейчас ритм — спокойный или загруженный? Сколько часов в неделю реально остаётся на новое?',
+                                'Какие планы уже есть — переезды, проекты, обязательства? Что из этого съест внимание?',
+                                'Сколько времени нужно на отдых и восстановление, чтобы не выгореть?',
+                            ].map((q, i) => (
+                                <li key={i} style={{
+                                    fontSize: '13px',
+                                    color: 'var(--ink-soft)',
+                                    lineHeight: 1.55,
+                                    paddingLeft: '14px',
+                                    position: 'relative',
+                                    marginBottom: i < 2 ? '8px' : 0,
+                                }}>
+                                    <span style={{
+                                        position: 'absolute',
+                                        left: 0,
+                                        color: 'var(--terracotta)',
+                                    }}>·</span>
+                                    {q}
+                                </li>
+                            ))}
+                        </ul>
+                        <p className="serif" style={{
+                            fontSize: '13px',
+                            fontStyle: 'italic',
+                            color: 'var(--ink-muted)',
+                            marginBottom: '24px',
+                            lineHeight: 1.55,
+                        }}>
+                            Лучше взять срок с запасом, чем переоценить силы. В среднем люди недооценивают сроки в 1.5–2 раза.
+                        </p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {options.map(opt => {
+                                const isSelected = currentValue === opt.value;
+                                return (
+                                    <button
+                                        key={opt.value}
+                                        onClick={() => onChoose(opt.value)}
+                                        style={{
+                                            width: '100%',
+                                            padding: '14px 18px',
+                                            background: isSelected ? 'var(--ink)' : 'white',
+                                            color: isSelected ? 'white' : 'var(--ink)',
+                                            border: '1px solid',
+                                            borderColor: isSelected ? 'var(--ink)' : 'var(--line)',
+                                            borderRadius: '10px',
+                                            cursor: 'pointer',
+                                            fontFamily: 'Manrope, sans-serif',
+                                            fontSize: '14px',
+                                            fontWeight: 500,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            transition: 'all 0.15s',
+                                            textAlign: 'left',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            if (!isSelected) {
+                                                e.currentTarget.style.background = '#FAF6EC';
+                                                e.currentTarget.style.borderColor = 'var(--ink-muted)';
+                                            }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            if (!isSelected) {
+                                                e.currentTarget.style.background = 'white';
+                                                e.currentTarget.style.borderColor = 'var(--line)';
+                                            }
+                                        }}
+                                    >
+                                        <span style={{ fontWeight: 600 }}>{opt.label}</span>
+                                        <span style={{
+                                            fontSize: '12px',
+                                            fontWeight: 400,
+                                            color: isSelected ? 'rgba(255,255,255,0.7)' : 'var(--ink-muted)',
+                                            fontStyle: 'italic',
+                                        }}>{opt.hint}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button onClick={onClose} style={{
+                            marginTop: '16px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--ink-muted)',
+                            cursor: 'pointer',
+                            fontFamily: 'Manrope, sans-serif',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            padding: '6px 0',
+                        }}
+                        onMouseEnter={(e) => e.target.style.color = 'var(--ink-soft)'}
+                        onMouseLeave={(e) => e.target.style.color = 'var(--ink-muted)'}
+                        >
+                            {isFirstTime ? 'Пропустить' : 'Отмена'}
+                        </button>
+
+                        <p className="serif" style={{
+                            marginTop: '20px',
+                            paddingTop: '16px',
+                            borderTop: '1px solid var(--line)',
+                            fontSize: '12px',
+                            fontStyle: 'italic',
+                            color: 'var(--ink-muted)',
+                            lineHeight: 1.55,
+                        }}>
+                            Возвращайся к дереву. Ствол и крона меняются вместе с твоей реальностью. Период реализации тоже можно поменять в меню.
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        // ===== ГЛАВНЫЙ КОМПОНЕНТ =====
+        function TreeApp() {
+            const [items, setItems] = useState(() => {
+                const saved = localStorage.getItem('treeItems_v6');
+                return saved ? JSON.parse(saved) : { roots: [], trunk: [], branches: [], crown: [] };
+            });
+            const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('tree_intro_seen_v1'));
+            const [drawerOpen, setDrawerOpen] = useState(false);
+            const [aboutOpen, setAboutOpen] = useState(false);
+            const [showPanel, setShowPanel] = useState(true);
+            const [modal, setModal] = useState(null);
+            const [inputText, setInputText] = useState('');
+            const [imageLoaded, setImageLoaded] = useState(false);
+            const [popoverZone, setPopoverZone] = useState(null);
+            const [exampleZone, setExampleZone] = useState(null);
+            const [menuOpen, setMenuOpen] = useState(false);
+            const [horizon, setHorizon] = useState(() => localStorage.getItem('tree_horizon_v1') || null);
+            const [showHorizonDialog, setShowHorizonDialog] = useState(false);
+            const [toast, setToast] = useState(null);
+            const containerRef = useRef(null);
+            const inputRef = useRef(null);
+
+            useEffect(() => { localStorage.setItem('treeItems_v6', JSON.stringify(items)); }, [items]);
+            useEffect(() => { if (modal && inputRef.current) inputRef.current.focus(); }, [modal]);
+            useEffect(() => {
+                if (horizon) localStorage.setItem('tree_horizon_v1', horizon);
+            }, [horizon]);
+            useEffect(() => {
+                if (!toast) return;
+                const t = setTimeout(() => setToast(null), 3500);
+                return () => clearTimeout(t);
+            }, [toast]);
+
+            const closeWelcome = () => {
+                localStorage.setItem('tree_intro_seen_v1', '1');
+                setShowWelcome(false);
+            };
+
+            const handleAdd = (zone) => {
+                if (zone === 'roots') {
+                    const used = items.roots.map(i => i.slotId);
+                    const free = ROOT_SLOTS.find(s => !used.includes(s.id));
+                    if (free) setModal({ zone, isNew: true, slotId: free.id });
+                    else {
+                        const offset = (items.roots.length - ROOT_SLOTS.length) * 3;
+                        setModal({ zone, isNew: true, x: 50 + (offset % 30) - 15, y: 88 });
+                    }
+                } else if (zone === 'branches') {
+                    if (items.branches.length >= 5) {
+                        setToast({
+                            title: 'Сейчас 5 из 5',
+                            body: 'Удали одну ветку, чтобы добавить новую — фокус не должен размываться.',
+                        });
+                        return;
+                    }
+                    const used = items.branches.map(i => i.slotId);
+                    const free = BRANCH_SLOTS.find(s => !used.includes(s.id));
+                    setModal({ zone, isNew: true, slotId: free.id });
+                } else if (zone === 'crown') {
+                    // При добавлении первого плода — спрашиваем горизонт
+                    if (items.crown.length === 0 && !horizon) {
+                        setShowHorizonDialog(true);
+                        return;
+                    }
+                    const pos = ORANGE_POSITIONS[items.crown.length % ORANGE_POSITIONS.length];
+                    setModal({ zone, isNew: true, x: pos.x, y: pos.y });
+                } else {
+                    setModal({ zone, isNew: true });
+                }
+                setInputText('');
+            };
+
+            const handleHorizonChosen = (value) => {
+                setHorizon(value);
+                setShowHorizonDialog(false);
+                // После выбора горизонта продолжаем добавление плода
+                setTimeout(() => {
+                    const pos = ORANGE_POSITIONS[items.crown.length % ORANGE_POSITIONS.length];
+                    setModal({ zone: 'crown', isNew: true, x: pos.x, y: pos.y });
+                    setInputText('');
+                }, 100);
+            };
+
+            const handleSave = () => {
+                if (!inputText.trim()) return;
+                if (modal.isNew) {
+                    const newItem = {
+                        id: Date.now(), text: inputText.trim(),
+                        ...(modal.slotId && { slotId: modal.slotId }),
+                        ...(modal.zone === 'crown' && { x: modal.x, y: modal.y }),
+                        ...(modal.zone === 'roots' && modal.x !== undefined && { x: modal.x, y: modal.y }),
+                    };
+                    setItems(prev => ({ ...prev, [modal.zone]: [...prev[modal.zone], newItem] }));
+                } else {
+                    setItems(prev => ({
+                        ...prev,
+                        [modal.zone]: prev[modal.zone].map(i => i.id === modal.item.id ? { ...i, text: inputText.trim() } : i)
+                    }));
+                }
+                setModal(null); setInputText('');
+            };
+
+            const handleEdit = (zone, item) => {
+                setModal({ zone, isNew: false, item });
+                setInputText(item.text);
+            };
+            const handleDelete = (zone, id) => {
+                setItems(prev => ({ ...prev, [zone]: prev[zone].filter(i => i.id !== id) }));
+            };
+            const handleDrag = (zone) => (id, newX, newY) => {
+                setItems(prev => ({
+                    ...prev,
+                    [zone]: prev[zone].map(i => i.id === id ? { ...i, x: newX, y: newY, ...(zone === 'trunk' && { pinned: true }) } : i)
+                }));
+            };
+            const handleHarvest = (id) => {
+                setItems(prev => ({
+                    ...prev,
+                    crown: prev.crown.map(i => i.id === id ? { ...i, harvested: !i.harvested } : i)
+                }));
+            };
+
+            const getTrunkData = () => {
+                const autoItems = items.trunk.filter(i => !i.pinned);
+                return items.trunk.map(item => {
+                    if (item.pinned) return { item, autoX: item.x, autoY: item.y };
+                    const idx = autoItems.findIndex(a => a.id === item.id);
+                    const r = idx * 0.8;
+                    const angle = idx * 2.5;
+                    return {
+                        item,
+                        autoX: TRUNK.centerX + r * Math.cos(angle),
+                        autoY: TRUNK.centerY + r * Math.sin(angle),
+                    };
+                });
+            };
+
+            const exportData = () => {
+                const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'my-tree.json'; a.click();
+            };
+            const clearAll = () => {
+                if (confirm('Удалить все записи?')) setItems({ roots: [], trunk: [], branches: [], crown: [] });
+            };
+
+            const ZONE_KEYS = ['roots', 'trunk', 'branches', 'crown'];
+
+            return (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', position: 'relative' }}>
+                    {/* СЛОГАН-ХЕДЕР */}
+                    <div style={{
+                        height: '40px',
+                        background: 'rgba(15,20,35,0.85)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        borderBottom: '1px solid rgba(255,255,255,0.08)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        zIndex: 100,
+                    }}>
+                        <span className="serif" style={{
+                            fontSize: '14px',
+                            fontStyle: 'italic',
+                            color: 'rgba(255,255,255,0.7)',
+                            letterSpacing: '0.01em',
+                        }}>
+                            Опора — не ресурс, а ресурс — не цель
+                        </span>
+                    </div>
+
+                    {/* ОСНОВНАЯ ОБЛАСТЬ */}
+                    <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
+                        {/* СЦЕНА С ДЕРЕВОМ */}
+                        <div style={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'center', justifyContent: 'center',
+                            overflow: 'hidden',
+                            padding: '20px',
+                            position: 'relative',
+                            backgroundImage: 'url(tree.png)',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat',
+                        }}>
+                            <div style={{
+                                position: 'absolute', inset: 0,
+                                backdropFilter: 'blur(30px) brightness(0.6) saturate(1.05)',
+                                WebkitBackdropFilter: 'blur(30px) brightness(0.6) saturate(1.05)',
+                                background: 'rgba(25,35,45,0.25)',
+                                zIndex: 0,
+                            }} />
+
+                            <div ref={containerRef} style={{
+                                position: 'relative',
+                                display: 'inline-block',
+                                maxWidth: '100%', maxHeight: '100%',
+                                zIndex: 1,
+                            }}>
+                                <img
+                                    src="tree.png" alt="Дерево Опоры"
+                                    onLoad={() => setImageLoaded(true)}
+                                    style={{
+                                        display: 'block',
+                                        maxWidth: '100%',
+                                        maxHeight: 'calc(100vh - 80px)',
+                                        width: 'auto', height: 'auto',
+                                        borderRadius: '12px',
+                                    }}
+                                />
+                                {imageLoaded && (
+                                    <>
+                                        {items.roots.map(item => (
+                                            <RootItem key={item.id} item={item}
+                                                containerRef={containerRef}
+                                                onEdit={(i) => handleEdit('roots', i)}
+                                                onDelete={(id) => handleDelete('roots', id)}
+                                                onDrag={handleDrag('roots')} />
+                                        ))}
+                                        {items.branches.map(item => (
+                                            <BranchItem key={item.id} item={item}
+                                                onEdit={(i) => handleEdit('branches', i)}
+                                                onDelete={(id) => handleDelete('branches', id)} />
+                                        ))}
+                                        {getTrunkData().map(({ item, autoX, autoY }) => (
+                                            <TrunkItem key={item.id} item={item} autoX={autoX} autoY={autoY}
+                                                containerRef={containerRef}
+                                                onEdit={(i) => handleEdit('trunk', i)}
+                                                onDelete={(id) => handleDelete('trunk', id)}
+                                                onDrag={handleDrag('trunk')} />
+                                        ))}
+                                        {items.crown.map(item => (
+                                            <FruitItem key={item.id} item={item}
+                                                containerRef={containerRef}
+                                                onEdit={(i) => handleEdit('crown', i)}
+                                                onDelete={(id) => handleDelete('crown', id)}
+                                                onHarvest={handleHarvest}
+                                                onDrag={handleDrag('crown')} />
+                                        ))}
+                                    </>
+                                )}
+                            </div>
+
+                            {/* ЛЕВАЯ ШТОРКА С ВОПРОСАМИ */}
+                            <QuestionsDrawer
+                                open={drawerOpen}
+                                onClose={(openIt) => setDrawerOpen(openIt === true ? true : false)}
+                            />
+                        </div>
+
+                        {/* ПРАВАЯ ПАНЕЛЬ */}
+                        <div style={{
+                            width: showPanel ? '340px' : '40px',
+                            background: '#FDFBF7',
+                            borderLeft: '1px solid #E8E2D4',
+                            transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1)',
+                            display: 'flex', flexDirection: 'column',
+                            flexShrink: 0,
+                            position: 'relative',
+                        }}>
+                            <button
+                                onClick={() => setShowPanel(!showPanel)}
+                                style={{
+                                    position: 'absolute',
+                                    left: '-16px',
+                                    top: '24px',
+                                    zIndex: 200,
+                                    background: 'white',
+                                    border: '1px solid #E8E2D4',
+                                    borderRadius: '50%',
+                                    width: '32px', height: '32px',
+                                    cursor: 'pointer',
+                                    color: '#5C5A53',
+                                    fontSize: '14px',
+                                    boxShadow: '0 2px 8px rgba(43,42,38,0.08)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                }}
+                            >{showPanel ? '→' : '←'}</button>
+
+                            {showPanel && (
+                                <div className="scrollable" style={{ padding: '24px 22px', overflowY: 'auto', flex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px' }}>
+                                        <div>
+                                            <h1 className="serif" style={{ fontSize: '26px', fontWeight: 500, color: '#2B2A26', letterSpacing: '-0.01em', lineHeight: 1.15 }}>
+                                                Дерево Опоры
+                                            </h1>
+                                            <p style={{ marginTop: '4px', fontSize: '12px', color: '#8A877E', fontWeight: 400 }}>
+                                                Roots & Fruits
+                                            </p>
+                                            {horizon && (
+                                                <button
+                                                    onClick={() => setShowHorizonDialog(true)}
+                                                    style={{
+                                                        marginTop: '10px',
+                                                        background: 'rgba(184,137,107,0.08)',
+                                                        border: '1px solid rgba(184,137,107,0.18)',
+                                                        borderRadius: '999px',
+                                                        padding: '4px 12px',
+                                                        cursor: 'pointer',
+                                                        fontFamily: 'Manrope, sans-serif',
+                                                        fontSize: '11px',
+                                                        fontWeight: 500,
+                                                        color: 'var(--terracotta-dark)',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '6px',
+                                                        transition: 'background 0.15s',
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(184,137,107,0.14)'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(184,137,107,0.08)'}
+                                                    title="Поменять горизонт"
+                                                >
+                                                    <span style={{
+                                                        width: '5px', height: '5px',
+                                                        borderRadius: '50%',
+                                                        background: 'var(--terracotta)',
+                                                    }} />
+                                                    Период реализации: {horizon === '6m' ? '6 месяцев' : horizon === '1y' ? '1 год' : '3 года'}
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div style={{ position: 'relative' }}>
+                                            <button
+                                                onClick={() => setMenuOpen(!menuOpen)}
+                                                style={{
+                                                    width: '28px', height: '28px',
+                                                    borderRadius: '50%',
+                                                    border: 'none',
+                                                    background: menuOpen ? 'var(--line)' : 'transparent',
+                                                    color: 'var(--ink-soft)',
+                                                    cursor: 'pointer',
+                                                    fontSize: '16px',
+                                                    fontWeight: 500,
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    lineHeight: 1,
+                                                    transition: 'background 0.15s',
+                                                }}
+                                            >⋯</button>
+                                            {menuOpen && (
+                                                <>
+                                                    <div onClick={() => setMenuOpen(false)} style={{
+                                                        position: 'fixed', inset: 0, zIndex: 199,
+                                                    }} />
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        top: '36px',
+                                                        right: 0,
+                                                        background: 'white',
+                                                        border: '1px solid var(--line)',
+                                                        borderRadius: '10px',
+                                                        boxShadow: '0 8px 24px rgba(43,42,38,0.12)',
+                                                        padding: '4px',
+                                                        zIndex: 200,
+                                                        minWidth: '200px',
+                                                        animation: 'scaleIn 0.15s',
+                                                    }}>
+                                                        <MenuItem onClick={() => { setShowWelcome(true); setMenuOpen(false); }}>Снова показать введение</MenuItem>
+                                                        <MenuItem onClick={() => { setShowHorizonDialog(true); setMenuOpen(false); }}>
+                                                            {horizon ? 'Поменять период реализации' : 'Задать период реализации'}
+                                                        </MenuItem>
+                                                        <MenuItem onClick={() => { setAboutOpen(true); setMenuOpen(false); }}>О подходе</MenuItem>
+                                                        <div style={{ height: '1px', background: 'var(--line)', margin: '4px 0' }} />
+                                                        <MenuItem onClick={() => { exportData(); setMenuOpen(false); }}>Экспорт данных</MenuItem>
+                                                        <MenuItem onClick={() => { clearAll(); setMenuOpen(false); }} danger>Очистить дерево</MenuItem>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Кнопки добавления */}
+                                    <div style={{ marginBottom: '20px' }}>
+                                        <h3 style={{
+                                            fontSize: '11px', fontWeight: 600,
+                                            textTransform: 'uppercase', letterSpacing: '0.08em',
+                                            color: '#8A877E', marginBottom: '10px',
+                                        }}>Добавить</h3>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            {ZONE_KEYS.map(zone => {
+                                                const info = ZONE_INFO[zone];
+                                                const count = items[zone].length;
+                                                const limit = zone === 'branches' ? 5 : null;
+                                                const harvested = zone === 'crown' ? items.crown.filter(i => i.harvested).length : 0;
+                                                return (
+                                                    <AddButton
+                                                        key={zone}
+                                                        zone={zone}
+                                                        info={info}
+                                                        count={count}
+                                                        limit={limit}
+                                                        harvested={harvested}
+                                                        onClick={() => handleAdd(zone)}
+                                                        onInfo={() => setPopoverZone(popoverZone === zone ? null : zone)}
+                                                        popoverOpen={popoverZone === zone}
+                                                        disabled={false}
+                                                        onShowExample={() => setExampleZone(zone)}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Модалка редактирования */}
+                                    {modal && (
+                                        <div style={{
+                                            background: 'white', padding: '18px',
+                                            borderRadius: '14px', marginBottom: '20px',
+                                            border: '1px solid var(--line)',
+                                            boxShadow: '0 2px 4px rgba(43,42,38,0.04), 0 4px 12px rgba(43,42,38,0.08)',
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: ZONE_INFO[modal.zone].bg }} />
+                                                <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8A877E' }}>
+                                                    {modal.isNew ? 'Новая' : 'Редактирование'} · {ZONE_INFO[modal.zone].label}
+                                                </span>
+                                            </div>
+                                            <input
+                                                ref={inputRef}
+                                                className="app-input"
+                                                type="text"
+                                                value={inputText}
+                                                onChange={(e) => setInputText(e.target.value)}
+                                                placeholder="Название..."
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') handleSave();
+                                                    if (e.key === 'Escape') { setModal(null); setInputText(''); }
+                                                }}
+                                                style={{ marginBottom: '12px' }}
+                                            />
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <button onClick={handleSave} style={{
+                                                    flex: 1, padding: '10px 14px',
+                                                    background: 'var(--ink)', color: 'white',
+                                                    border: 'none', borderRadius: '8px', cursor: 'pointer',
+                                                    fontFamily: 'Manrope, sans-serif', fontSize: '13px', fontWeight: 500,
+                                                    transition: 'background 0.15s',
+                                                }}
+                                                onMouseEnter={(e) => e.target.style.background = '#000'}
+                                                onMouseLeave={(e) => e.target.style.background = 'var(--ink)'}
+                                                >Сохранить</button>
+                                                <button onClick={() => { setModal(null); setInputText(''); }} style={{
+                                                    padding: '10px 14px',
+                                                    background: 'transparent', color: 'var(--ink-soft)',
+                                                    border: '1px solid var(--line)', borderRadius: '8px', cursor: 'pointer',
+                                                    fontFamily: 'Manrope, sans-serif', fontSize: '13px', fontWeight: 500,
+                                                }}>Отмена</button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Подсказка-туториал */}
+                                    <div style={{
+                                        padding: '14px',
+                                        background: 'rgba(184,137,107,0.06)',
+                                        borderRadius: '10px',
+                                        marginBottom: '20px',
+                                    }}>
+                                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--terracotta-dark)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
+                                            Подсказка
+                                        </div>
+                                        <p style={{ fontSize: '12px', color: 'var(--ink-soft)', lineHeight: 1.55 }}>
+                                            Кликни <span style={{ display: 'inline-flex', width: '14px', height: '14px', borderRadius: '50%', background: 'var(--line)', color: 'var(--ink-soft)', alignItems: 'center', justifyContent: 'center', fontFamily: 'Fraunces, serif', fontSize: '9px', fontStyle: 'italic', verticalAlign: 'middle', fontWeight: 600 }}>i</span> чтобы узнать про каждый тип. Опоры, ресурсы и плоды можно перетаскивать мышкой.
+                                        </p>
+                                    </div>
+
+                                    {/* Подвал — О подходе */}
+                                    <div style={{
+                                        marginTop: 'auto',
+                                        paddingTop: '20px',
+                                        borderTop: '1px solid var(--line)',
+                                    }}>
+                                        <button
+                                            onClick={() => setAboutOpen(true)}
+                                            style={{
+                                                background: 'transparent',
+                                                border: 'none',
+                                                color: 'var(--accent)',
+                                                cursor: 'pointer',
+                                                fontFamily: 'Manrope, sans-serif',
+                                                fontSize: '12px',
+                                                fontWeight: 500,
+                                                padding: '4px 0',
+                                                display: 'flex', alignItems: 'center', gap: '4px',
+                                            }}
+                                            onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                                            onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+                                        >
+                                            О подходе →
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* МОДАЛКИ */}
+                    {showWelcome && <WelcomeModal onClose={closeWelcome} />}
+                    {exampleZone && <ExampleModal zone={exampleZone} onClose={() => setExampleZone(null)} />}
+                    {aboutOpen && <AboutPage onClose={() => setAboutOpen(false)} />}
+                    {showHorizonDialog && (
+                        <HorizonDialog
+                            currentValue={horizon}
+                            isFirstTime={items.crown.length === 0 && !horizon}
+                            onChoose={handleHorizonChosen}
+                            onClose={() => {
+                                setShowHorizonDialog(false);
+                                // Если это был первый плод и пользователь пропустил — всё равно открываем модалку плода
+                                if (items.crown.length === 0 && !horizon) {
+                                    setTimeout(() => {
+                                        const pos = ORANGE_POSITIONS[0];
+                                        setModal({ zone: 'crown', isNew: true, x: pos.x, y: pos.y });
+                                        setInputText('');
+                                    }, 100);
+                                }
+                            }}
+                        />
+                    )}
+                    {toast && <Toast title={toast.title} body={toast.body} onClose={() => setToast(null)} />}
+                </div>
+            );
+        }
+
+        function MenuItem({ onClick, children, danger }) {
+            const [hover, setHover] = useState(false);
+            return (
+                <button
+                    onClick={onClick}
+                    onMouseEnter={() => setHover(true)}
+                    onMouseLeave={() => setHover(false)}
+                    style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        background: hover ? (danger ? 'rgba(220,80,80,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent',
+                        color: danger ? '#C43B3B' : 'var(--ink)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontFamily: 'Manrope, sans-serif',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        textAlign: 'left',
+                        transition: 'background 0.1s',
+                    }}
+                >{children}</button>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<TreeApp />);
+    </script>
+</body>
+</html>
