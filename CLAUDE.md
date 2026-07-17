@@ -1030,8 +1030,8 @@ language
 - [x] Локальный setup: Node, Claude Code, project folder
 - [x] GitHub repo создать, первый коммит — [SnowVB/rootsnfroots](https://github.com/SnowVB/rootsnfroots)
 - [x] Next.js app scaffolding
-- [ ] Supabase project create, schema setup — SDK подключён (`@supabase/ssr`), клиенты в `src/lib/supabase/`; сам проект и схема — следующий шаг
-- [ ] Vercel proект create, GitHub-connect
+- [x] Supabase project create — проект создан (`mvfffajijkqyakqlpuyt`), ключи в `.env.local`; schema setup — следующий шаг
+- [x] Vercel proект create, GitHub-connect
 - [ ] PostHog project, API keys в env
 - [x] CLAUDE.md в репо (этот документ)
 
