@@ -1006,6 +1006,20 @@ language
 **D17. От автора — Вячеслав, "коуч по самоопоре".**
 - Rationale: Уникальное позиционирование, прямая связь с метафорой продукта, отличает от широкой массы коучей. Trade-off: новое слово для холодного юзера, но в конце "О подходе" уже принято.
 
+### 2026-07-17 Phase 0 → Phase 1 transition
+
+**D18. Next.js 16 + Tailwind CSS v4 вместо заявленных "14+".**
+- Rationale: На момент scaffolding `create-next-app@latest` ставит 16.2.10 / Tailwind v4 — новее, чем версия, названная в разделе 9, но удовлетворяет "14+". App Router, `next/font`, Server Components — всё как задумано.
+- Заметка: Next 16 несёт breaking changes относительно того, что могло быть в обучающих данных модели — при генерации кода сверяться с `node_modules/next/dist/docs/` (см. авто-сгенерированный `AGENTS.md` в корне репо).
+
+**D19. GitHub push через SSH-ключ, не через `gh` CLI.**
+- Rationale: На машине фаундера нет Homebrew, `gh` CLI недоступен без него. Вместо установки Homebrew ради одного инструмента — сгенерирован новый ed25519 SSH-ключ, добавлен фаундером в GitHub-аккаунт вручную. Репозиторий `SnowVB/rootsnfroots` фаундер создал сам через веб-интерфейс.
+- Trade-off: без `gh` CLI создание issues/PR из терминала потребует либо веб-интерфейса, либо установки `gh` позже (например через прямой бинарник с GitHub Releases, без sudo).
+
+**D20. Vercel и Supabase подключаются через дашборд, не CLI.**
+- Rationale: Оба сервиса требуют OAuth-логина фаундера в браузере — Claude Code не может пройти этот флоу от его имени. Vercel: `vercel.com/new` → import `SnowVB/rootsnfroots`. Supabase: проект создаётся в дашборде, ключи (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) передаются в `.env.local` (не коммитится, см. `.env.local.example`).
+- Реализовано заранее: `@supabase/ssr` + `@supabase/supabase-js` установлены, клиенты-хелперы в `src/lib/supabase/client.ts` (browser) и `src/lib/supabase/server.ts` (server, cookie-based session). Auth-flow и схема БД — отдельный шаг Phase 1, ждут реального Supabase-проекта.
+
 ---
 
 ## 17. Roadmap to Launch
@@ -1013,13 +1027,13 @@ language
 ### Phase 0: Setup (week 1)
 
 - [x] Прототип в чате — UX, тексты, лука, поток
-- [ ] Локальный setup: Node, Claude Code, project folder
-- [ ] GitHub repo создать, первый коммит
-- [ ] Next.js app scaffolding
-- [ ] Supabase project create, schema setup
+- [x] Локальный setup: Node, Claude Code, project folder
+- [x] GitHub repo создать, первый коммит — [SnowVB/rootsnfroots](https://github.com/SnowVB/rootsnfroots)
+- [x] Next.js app scaffolding
+- [ ] Supabase project create, schema setup — SDK подключён (`@supabase/ssr`), клиенты в `src/lib/supabase/`; сам проект и схема — следующий шаг
 - [ ] Vercel proект create, GitHub-connect
 - [ ] PostHog project, API keys в env
-- [ ] CLAUDE.md в репо (этот документ)
+- [x] CLAUDE.md в репо (этот документ)
 
 ### Phase 1: MVP migration (weeks 2-4)
 
