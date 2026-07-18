@@ -1020,6 +1020,15 @@ language
 - Rationale: Оба сервиса требуют OAuth-логина фаундера в браузере — Claude Code не может пройти этот флоу от его имени. Vercel: `vercel.com/new` → import `SnowVB/rootsnfroots`. Supabase: проект создаётся в дашборде, ключи (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) передаются в `.env.local` (не коммитится, см. `.env.local.example`).
 - Реализовано заранее: `@supabase/ssr` + `@supabase/supabase-js` установлены, клиенты-хелперы в `src/lib/supabase/client.ts` (browser) и `src/lib/supabase/server.ts` (server, cookie-based session). Auth-flow и схема БД — отдельный шаг Phase 1, ждут реального Supabase-проекта.
 
+**D21. `vercel link --yes` без явного `--project` создаёт новый проект, а не линкует существующий.**
+- Rationale: Наступили на эту грабли сами — `vercel link --yes` в первый раз тихо создал пустой дубликат-проект `tree-of-support` вместо линковки к уже задеплоенному `rootsnfroots`, и подключил к нему тот же GitHub-репозиторий (риск двойного деплоя на каждый push). Удалили дубликат, перелинковали через `vercel link --project rootsnfroots --yes`.
+- На будущее: при линковке существующего Vercel-проекта всегда указывать `--project <name>` явно, не полагаться на автоопределение по имени директории.
+
+**D22. Схема БД — SQL-миграция в репо + ручной прогон через Supabase SQL Editor, не `supabase db push`.**
+- Rationale: `supabase link`/`db push` требуют либо пароль от Postgres (Settings → Database), либо `supabase login`, который сам требует personal access token уровня аккаунта (шире по правам, чем anon key) — CLI отказывается от device-auth флоу вне TTY. Ради одного первого прогона схемы это лишнее трение и лишний секрет для хранения.
+- Компромисс: `supabase/migrations/0001_init.sql` — источник правды в git, но применяется вручную через SQL Editor. TypeScript-типы (`src/lib/supabase/database.types.ts`) написаны руками по той же миграции вместо `supabase gen types` — по той же причине (нет access token). При изменении схемы — обновлять миграцию и типы в одном коммите.
+- Пересмотреть при: частых изменениях схемы (тогда трение CLI-флоу с одноразовым получением access token окупится) или при найме второго разработчика (нужен воспроизводимый non-interactive способ применять миграции, а не «зайди в дашборд и вставь SQL»).
+
 ---
 
 ## 17. Roadmap to Launch
@@ -1039,7 +1048,7 @@ language
 
 - [ ] Перенос дизайн-системы из прототипа в Tailwind config
 - [ ] Component library: Root, TrunkItem, BranchItem, FruitItem, InfoPopover, ExampleModal, WelcomeModal, HorizonDialog, AddButton, QuestionsDrawer, AboutPage
-- [ ] Data layer: Supabase schema + RLS policies + типы
+- [x] Data layer: Supabase schema + RLS policies + типы — `supabase/migrations/0001_init.sql`, типы в `src/lib/supabase/database.types.ts`
 - [ ] Auth: Supabase (email magic link или Google OAuth)
 - [ ] Drag & Drop: @dnd-kit integration
 - [ ] Routing: `/` (tree), `/about` (как страница)
