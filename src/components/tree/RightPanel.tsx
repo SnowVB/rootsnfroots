@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ZONE_INFO, ZONE_KEYS, BRANCH_LIMIT } from "@/lib/tree/constants";
 import type { TreeItems, ZoneKey } from "@/lib/tree/types";
 import { AddButton } from "./AddButton";
+import { AuthStatus } from "./AuthStatus";
 
 export interface ModalState {
   zone: ZoneKey;
@@ -15,6 +16,7 @@ interface RightPanelProps {
   items: TreeItems;
   modal: ModalState | null;
   inputText: string;
+  userEmail: string | null;
   onInputChange: (text: string) => void;
   onOpenAdd: (zone: ZoneKey) => void;
   onSave: () => void;
@@ -25,6 +27,7 @@ export function RightPanel({
   items,
   modal,
   inputText,
+  userEmail,
   onInputChange,
   onOpenAdd,
   onSave,
@@ -51,7 +54,7 @@ export function RightPanel({
       </button>
 
       {!collapsed && (
-        <div className="scrollable flex-1 overflow-y-auto p-[24px_22px]">
+        <div className="scrollable flex min-h-0 flex-1 flex-col overflow-y-auto p-[24px_22px]">
           <div className="mb-6">
             <h1 className="font-serif text-[26px] leading-[1.15] font-medium tracking-[-0.01em] text-ink">
               Дерево Опоры
@@ -133,6 +136,10 @@ export function RightPanel({
               Кликни на элемент, чтобы отредактировать его. Опоры, ресурсы и плоды можно
               перетаскивать мышкой.
             </p>
+          </div>
+
+          <div className="mt-auto border-t border-line pt-4">
+            <AuthStatus email={userEmail} />
           </div>
         </div>
       )}

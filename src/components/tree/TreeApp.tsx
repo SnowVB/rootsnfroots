@@ -1,0 +1,111 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { TreeScene } from "@/components/tree/TreeScene";
+import { RightPanel, type ModalState } from "@/components/tree/RightPanel";
+import { Toast } from "@/components/tree/Toast";
+import { BRANCH_LIMIT } from "@/lib/tree/constants";
+import type { ZoneKey } from "@/lib/tree/types";
+import { useTreeStore } from "@/store/useTreeStore";
+
+interface TreeAppProps {
+  userEmail: string | null;
+}
+
+export function TreeApp({ userEmail }: TreeAppProps) {
+  const items = useTreeStore((s) => s.items);
+  const addRoot = useTreeStore((s) => s.addRoot);
+  const addTrunkItem = useTreeStore((s) => s.addTrunkItem);
+  const addBranch = useTreeStore((s) => s.addBranch);
+  const addFruit = useTreeStore((s) => s.addFruit);
+  const updateItemText = useTreeStore((s) => s.updateItemText);
+
+  const [modal, setModal] = useState<ModalState | null>(null);
+  const [inputText, setInputText] = useState("");
+  const [branchLimitToast, setBranchLimitToast] = useState(false);
+
+  useEffect(() => {
+    useTreeStore.persist.rehydrate();
+  }, []);
+
+  useEffect(() => {
+    if (!branchLimitToast) return;
+    const t = setTimeout(() => setBranchLimitToast(false), 3500);
+    return () => clearTimeout(t);
+  }, [branchLimitToast]);
+
+  function openAdd(zone: ZoneKey) {
+    if (zone === "branches" && items.branches.length >= BRANCH_LIMIT) {
+      setBranchLimitToast(true);
+      return;
+    }
+    setModal({ zone, mode: "new" });
+    setInputText("");
+  }
+
+  function openEdit(zone: ZoneKey, id: string, text: string) {
+    setModal({ zone, mode: "edit", id });
+    setInputText(text);
+  }
+
+  function handleSave() {
+    if (!modal || !inputText.trim()) return;
+    if (modal.mode === "new") {
+      if (modal.zone === "roots") addRoot(inputText);
+      else if (modal.zone === "trunk") addTrunkItem(inputText);
+      else if (modal.zone === "branches") {
+        if (!addBranch(inputText)) {
+          setBranchLimitToast(true);
+          setModal(null);
+          setInputText("");
+          return;
+        }
+      } else if (modal.zone === "crown") addFruit(inputText);
+    } else if (modal.id) {
+      updateItemText(modal.zone, modal.id, inputText);
+    }
+    setModal(null);
+    setInputText("");
+  }
+
+  function handleCancel() {
+    setModal(null);
+    setInputText("");
+  }
+
+  return (
+    <div className="relative flex h-full flex-col">
+      <div className="z-[100] flex h-10 flex-shrink-0 items-center justify-center border-b border-white/[0.08] bg-[rgba(15,20,35,0.85)] backdrop-blur-md">
+        <span className="font-serif text-sm tracking-[0.01em] text-white/70 italic">
+          Опора — не ресурс, а ресурс — не цель
+        </span>
+      </div>
+
+      <div className="relative flex flex-1 overflow-hidden">
+        <TreeScene
+          onEditRoot={(item) => openEdit("roots", item.id, item.text)}
+          onEditTrunk={(item) => openEdit("trunk", item.id, item.text)}
+          onEditBranch={(item) => openEdit("branches", item.id, item.text)}
+          onEditFruit={(item) => openEdit("crown", item.id, item.text)}
+        />
+        {branchLimitToast && (
+          <Toast
+            title="Сейчас 5 из 5"
+            body="Удали одну ветку, чтобы добавить новую — фокус не должен размываться."
+            onClose={() => setBranchLimitToast(false)}
+          />
+        )}
+        <RightPanel
+          items={items}
+          modal={modal}
+          inputText={inputText}
+          userEmail={userEmail}
+          onInputChange={setInputText}
+          onOpenAdd={openAdd}
+          onSave={handleSave}
+          onCancel={handleCancel}
+        />
+      </div>
+    </div>
+  );
+}

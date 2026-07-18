@@ -1060,6 +1060,13 @@ language
 - Реализация роутинга (`next-intl`, `/[locale]/` сегмент) откладывается до появления реального английского контента (Backlog B4). Когда B4 стартует — рефактор `app/page.tsx` → `app/[locale]/page.tsx` per next-intl docs с русским как default locale (без префикса) — стандартный, некритичный шаг на тот момент.
 - Пересмотреть при: если на этапе локализации выяснится, что нужен принципиально разный копирайт/оффер под en-рынок (не просто перевод) — тогда одного домена с языковыми путями может быть недостаточно, и стоит вернуться к вопросу отдельного домена осознанно, а не по умолчанию.
 
+**D26. Auth: и email magic link, и Google OAuth, оба сразу — не последовательно.**
+- Rationale: фаундер подтвердил готовность сразу настроить оба способа входа, разницы в сложности после первоначальной настройки нет. Magic link не требует внешних сервисов (Supabase справляется сам), Google OAuth требует один раз пройти Google Cloud Console — фаундер это сделает.
+- Реализовано: `middleware.ts` + `src/lib/supabase/middleware.ts` (session refresh, стандартный `@supabase/ssr` паттерн для Next.js), `src/app/auth/page.tsx` (форма email + кнопка Google, Server Actions, без клиентского JS для самой формы), `src/app/auth/actions.ts` (`signInWithEmail`, `signInWithGoogle`, `signOut`), `src/app/auth/callback/route.ts` (обмен `code` на сессию через `exchangeCodeForSession`). `src/app/page.tsx` стал Server Component (читает пользователя через `supabase.auth.getUser()`, передаёт `userEmail` в клиентский `TreeApp`), реальный UI дерева переехал в `src/components/tree/TreeApp.tsx`.
+- Google OAuth настроен в коде, но НЕ будет работать до того как фаундер: (1) создаст OAuth Client ID в Google Cloud Console (бесплатно, без billing), redirect URI `https://mvfffajijkqyakqlpuyt.supabase.co/auth/v1/callback`; (2) вставит Client ID + Secret в Supabase Dashboard → Authentication → Providers → Google. До этого клик "Продолжить с Google" вернёт мягкую ошибку на `/auth` (не краш).
+- Что специально НЕ сделано в этот проход: миграция анонimной localStorage-сессии в Supabase при первом входе — это отдельный пункт roadmap ("Анонимная сессия → миграция в БД при signup"). После входа дерево пока продолжает читаться из localStorage независимо от auth-статуса — так и должно быть, пока миграция не собрана; см. также D23.
+- Legal/GDPR: явно НЕ входит в этот проход (см. §17 Phase 2, не начато). Google OAuth означает передачу данных третьей стороне — это делает Privacy Policy более срочной задачей к моменту публичного запуска, но writing юридических текстов не блокирует технический Auth-код.
+
 ---
 
 ## 17. Roadmap to Launch
@@ -1080,7 +1087,7 @@ language
 - [x] Перенос дизайн-системы из прототипа в Tailwind config — цвета/шрифты в `src/app/globals.css` (`@theme`), Manrope/Literata через `next/font/google` в `src/app/layout.tsx` (Literata вместо Fraunces — см. D24)
 - [ ] Component library: ~~Root~~, ~~TrunkItem~~, ~~BranchItem~~, ~~FruitItem~~, ~~AddButton~~ готовы (`src/components/tree/`, на локальном Zustand-стейте, см. D23); ещё нет: InfoPopover, ExampleModal, WelcomeModal, HorizonDialog, QuestionsDrawer, AboutPage
 - [x] Data layer: Supabase schema + RLS policies + типы — `supabase/migrations/0001_init.sql`, типы в `src/lib/supabase/database.types.ts`
-- [ ] Auth: Supabase (email magic link или Google OAuth)
+- [x] Auth: Supabase (email magic link и Google OAuth) — код готов (`/auth`, `/auth/callback`, `middleware.ts`); magic link рабочий из коробки, Google OAuth ждёт Client ID/Secret от фаундера в Supabase dashboard, см. D26
 - [ ] Drag & Drop: @dnd-kit integration
 - [ ] Routing: `/` (tree), `/about` (как страница)
 - [ ] Анонимная сессия → миграция в БД при signup
