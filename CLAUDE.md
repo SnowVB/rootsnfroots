@@ -67,7 +67,7 @@ Holiday-юзеры на старте — **русскоязычная аудит
 4. **Respect emotional weight.** Это инструмент рефлексии. Анимации, тосты, копирайт — всё спокойное. Никаких "Wow! Great job!" Никаких эмодзи в систематических сообщениях.
 5. **The user's text is sacred.** Никогда не модифицируем, не "улучшаем" формулировки юзера. Орфография — его, не наша.
 6. **Mobile is a first-class citizen** (в Production, не в прототипе) — будут пользоваться с телефона на ходу или дома на диване.
-7. **Russian first, English second.** До поиска PMF — только русский. Архитектурно готовы к i18n с первого дня.
+7. **Russian first, English second.** До поиска PMF — только русский. Архитектурно готовы к i18n с первого дня. Один домен (`rootsnfroots.com`), русский на корне без префикса сейчас, `/en/` добавится позже — не два отдельных сайта/домена — см. §9 "Domain & i18n strategy" и D25.
 
 ---
 
@@ -258,7 +258,7 @@ const TRUNK = { centerX: 50, centerY: 48, radius: 16 };
 ### Typography
 
 - **UI / тело**: Manrope (400 / 500 / 600). Через Google Fonts (NB: без `opsz` axis, см. Lessons Learned).
-- **Заголовки, бренд, акценты**: Fraunces (400 / 500 / 600 italic). Тёплый serif.
+- **Заголовки, бренд, акценты**: ~~Fraunces~~ **Literata** (400 / 500 / 600, italic). Тёплый humanist book-serif. Заменили Fraunces на этапе Component library — см. D24, Fraunces не имеет кириллических глифов. Один шрифт для ru и en, не разный по локали.
 - **Шкала**: 28 / 20 / 15 / 13 / 12 / 11 px
 - **Веса**: 400 для тела, 500 для UI, 600 для акцентов и uppercase-меток. **Не используем 700+** — слишком напористо для wellness-контекста.
 
@@ -616,6 +616,15 @@ const TRUNK = { centerX: 50, centerY: 48, radius: 16 };
 8. **No console.log в Production** — через ESLint правило. Используем PostHog/Sentry для логирования.
 9. **Тесты:** Unit-тесты для бизнес-логики (drag bounds, harvest toggle, slot allocation), E2E через Playwright для критичных flow (welcome → first root → first fruit + horizon).
 10. **CI/CD:** GitHub Actions → Vercel preview deploy on PR, auto-deploy main to production.
+
+### Domain & i18n strategy
+
+**Один домен, один Next.js app** — не два отдельных сайта/домена. Русский на корне (`rootsnfroots.com`, без префикса) сейчас — это единственный рынок запуска. `/en/` добавится как путь, когда стартует английская локализация (Backlog B4), не обязательно спустя долгий срок.
+
+- Пока существует только русский контент — путь `/ru/` не нужен, весь контент на корне. Реструктуризация под `next-intl`'s `/[locale]/` роутинг откладывается до появления `/en/` (см. D25 про "не проектировать под гипотетические будущие требования раньше времени").
+- **Будущий swap:** когда en-версия дозреет до полноценного использования, домен переворачивается одномоментно (301, не поэтапно) — en на корень, ru на `/ru/`. Внешние ссылки обновляются вручную в момент свопа. Это зафиксированное, но отложенное решение — ничего под него сейчас не резервируется в коде.
+- При первом визите — auto-detect языка через `Accept-Language`, с явным переключателем в UI (не молчаливый редирект без возможности отмены).
+- Полный rationale — см. D25.
 
 ---
 
@@ -1029,6 +1038,28 @@ language
 - Компромисс: `supabase/migrations/0001_init.sql` — источник правды в git, но применяется вручную через SQL Editor. TypeScript-типы (`src/lib/supabase/database.types.ts`) написаны руками по той же миграции вместо `supabase gen types` — по той же причине (нет access token). При изменении схемы — обновлять миграцию и типы в одном коммите.
 - Пересмотреть при: частых изменениях схемы (тогда трение CLI-флоу с одноразовым получением access token окупится) или при найме второго разработчика (нужен воспроизводимый non-interactive способ применять миграции, а не «зайди в дашборд и вставь SQL»).
 
+**D23. Component library стартовал раньше Auth, на локальном (Zustand + localStorage) стейте, не на Supabase.**
+- Rationale: RLS в `0001_init.sql` требует `auth.uid() = user_id` — писать в Supabase без auth физически нельзя. Roadmap (§17) уже ставит "Component library" раньше "Auth", а модель хранения (§4, D12) описывает anonymous-first поток: локальная сессия → миграция в БД при signup. Так что Zustand-стор с `localStorage`-персистом — это не заглушка, а первая реализация именно этого anonymous-слоя, а не одноразовый mock на выброс.
+- Реализовано: `src/store/useTreeStore.ts` (persist middleware, ключ `tos-tree-items-v1`, `skipHydration: true` + `onRehydrateStorage` — иначе SSR/CSR hydration mismatch, т.к. на сервере localStorage не существует). Компоненты: `RootItem`, `TrunkItemView`, `BranchItem`, `FruitItem` (+ `DeleteBtn`, `FruitMenuItem`, `useDraggable`) в `src/components/tree/`, портированы из `prototype/index.html` на Tailwind classes + inline style только для вычисляемых значений (позиция, drag-состояние).
+- Что специально НЕ перенесено в этот проход (чтобы не оставлять недоделанные UI-привязки — см. product principle "no half-finished implementations"): `InfoPopover`, `ExampleModal`, `WelcomeModal`, `HorizonDialog`, `QuestionsDrawer`, `AboutPage`, кнопка сворачивания ⋯-меню в правой панели (menu items оттуда зависят от About/Horizon/export, которых ещё нет). Из-за отсутствия `InfoPopover` кнопки добавления временно без иконки `i`; текст подсказки в правой панели (§7.8) на время адаптирован ("Кликни на элемент, чтобы отредактировать") — **вернуть точный текст §7.8 после того как `InfoPopover` будет собран**, это осознанное временное расхождение с текстом источника, не финальное решение.
+- Drag остался на самописном `useDraggable` (1:1 порт прототипной логики с порогом 3px), не на `@dnd-kit` — это отдельный пункт roadmap ("Drag & Drop: @dnd-kit integration"), сознательно не смешан с этим проходом.
+- Побочная находка: у Fraunces на Google Fonts нет кириллического сабсета (`next/font`'s `font-data.json` подтверждает — только `latin`, `latin-ext`, `vietnamese`). Кириллические заголовки на `font-serif` будут рендериться в fallback (`Georgia, serif`), не в Fraunces. На дизайн это может слегка повлиять — заголовки на кириллице не получат тот же графический характер, что латинские акценты. → Решение см. D24.
+
+**D24. Serif-бренд-шрифт заменён с Fraunces на Literata (везде, не только для ru).**
+- Rationale: продукт russian-first (§1) — почти все заголовки на кириллице, значит отсутствие кириллицы у Fraunces (см. D23) это не мелкий нюанс, а реальный пробел в бренде на старте. Сверили через `next/font`'s `font-data.json` (тот же источник, на котором держится весь font-loading) список серифов с реальной кириллицей: `Playfair Display`, `Lora`, `PT Serif`, `Bitter`, `Cormorant`, `Cormorant Garamond`, `Noto Serif`, `Alegreya`, `Spectral`, `Literata`, `Yeseva One`, `Philosopher`, `Ysabeau` — все технически валидны. Literata выбрана фаундером как ближайшая по характеру к Fraunces (тёплый humanist book-serif от Google, курсив есть, веса 300-900) среди вариантов с кириллицей.
+- Один шрифт на обе локали (ru и en), не разный по языку — иначе бренд визуально расходится между рынками в зависимости от того, на каком языке скриншот.
+- Реализовано: `src/app/layout.tsx` (`Literata` вместо `Fraunces`, `subsets: ["latin","cyrillic"]`), `src/app/globals.css` (`--font-serif: var(--font-literata), Georgia, serif`).
+- Обновить при: если позже захотим более "дизайнерский"/контрастный акцентный шрифт для маркетинговых материалов (лендинг, шеринг-карточка) — там ограничение по кириллице то же самое, держать в уме при выборе.
+
+**D25. Один домен (`rootsnfroots.com`) на ru и en, не два отдельных сайта/домена. Русский — корень без префикса сейчас, `/en/` добавляется позже. Auto-detect по `Accept-Language` + явный переключатель в UI.**
+- Контекст: всплыл вопрос при обсуждении D24 (менять ли serif-шрифт "только для ru" или везде) — оказалось, что нигде в проекте не было явно зафиксировано, один сайт или два, и какая локаль сидит на корне. В коде/roadmap (§9 "i18n (later)": `next-intl`, §17 "Домен `rootsnfroots.com` направлен на Vercel") всегда подразумевался один домен, но явного решения записано не было — фаундер подтвердил и уточнил детали.
+- Rationale за один домен: концентрация SEO-авторитета вместо раскола между двумя; `rootsnfroots.com` уже куплен именно под это; один сайт с языковыми путями легко переиграть редиректом позже — обратное (сращивать два независимых домена) намного дороже.
+- **Схема на старте:** `rootsnfroots.com` (корень, без префикса) = русский — это единственный рынок запуска (§1, §2.7). `/en/` появляется как путь, когда стартует английская локализация (Backlog B4) — не обязательно через 6-12 месяцев, может раньше, параллельно с ru.
+- **Будущий swap (зафиксирован, но НЕ закладывается в архитектуру сейчас):** когда en-версия будет готова к полноценному использованию, домен переворачивается одномоментно (не поэтапно) через 301-редиректы — английский переезжает на корень, русский переезжает на `/ru/`. Все внешние ссылки (соцсети, Telegram-канал, шеринг-карточки и т.п.) обновляются вручную в момент свопа, не заранее. До этого момента ничего в коде под этот swap не резервируется — типичный пример "не проектировать под гипотетические будущие требования раньше времени".
+- Из-за этого D24 (Literata вместо Fraunces) применяется на оба языка без исключений — раскол бренда по локали был бы такой же ошибкой, как раскол домена.
+- Реализация роутинга (`next-intl`, `/[locale]/` сегмент) откладывается до появления реального английского контента (Backlog B4). Когда B4 стартует — рефактор `app/page.tsx` → `app/[locale]/page.tsx` per next-intl docs с русским как default locale (без префикса) — стандартный, некритичный шаг на тот момент.
+- Пересмотреть при: если на этапе локализации выяснится, что нужен принципиально разный копирайт/оффер под en-рынок (не просто перевод) — тогда одного домена с языковыми путями может быть недостаточно, и стоит вернуться к вопросу отдельного домена осознанно, а не по умолчанию.
+
 ---
 
 ## 17. Roadmap to Launch
@@ -1046,8 +1077,8 @@ language
 
 ### Phase 1: MVP migration (weeks 2-4)
 
-- [ ] Перенос дизайн-системы из прототипа в Tailwind config
-- [ ] Component library: Root, TrunkItem, BranchItem, FruitItem, InfoPopover, ExampleModal, WelcomeModal, HorizonDialog, AddButton, QuestionsDrawer, AboutPage
+- [x] Перенос дизайн-системы из прототипа в Tailwind config — цвета/шрифты в `src/app/globals.css` (`@theme`), Manrope/Literata через `next/font/google` в `src/app/layout.tsx` (Literata вместо Fraunces — см. D24)
+- [ ] Component library: ~~Root~~, ~~TrunkItem~~, ~~BranchItem~~, ~~FruitItem~~, ~~AddButton~~ готовы (`src/components/tree/`, на локальном Zustand-стейте, см. D23); ещё нет: InfoPopover, ExampleModal, WelcomeModal, HorizonDialog, QuestionsDrawer, AboutPage
 - [x] Data layer: Supabase schema + RLS policies + типы — `supabase/migrations/0001_init.sql`, типы в `src/lib/supabase/database.types.ts`
 - [ ] Auth: Supabase (email magic link или Google OAuth)
 - [ ] Drag & Drop: @dnd-kit integration
