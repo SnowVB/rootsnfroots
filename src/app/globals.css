@@ -1,26 +1,112 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink: #2b2a26;
+  --ink-soft: #5c5a53;
+  --ink-muted: #8a877e;
+  --cream: #fdfbf7;
+  --cream-2: #f5f1e8;
+  --line: #e8e2d4;
+  --line-soft: #f0ebe0;
+
+  --terracotta: #b8896b;
+  --terracotta-dark: #8b6344;
+  --moss: #7a8d6a;
+  --moss-dark: #5b6e4e;
+  --sage: #aed581;
+  --sage-dark: #8baf5c;
+  --coral: #e8876b;
+  --coral-dark: #c76a4f;
+
+  --accent: #6b8fa8;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-manrope);
+  --font-serif: var(--font-literata), Georgia, serif;
+
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-muted: var(--ink-muted);
+  --color-cream: var(--cream);
+  --color-cream-2: var(--cream-2);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-dark: var(--terracotta-dark);
+  --color-moss: var(--moss);
+  --color-moss-dark: var(--moss-dark);
+  --color-sage: var(--sage);
+  --color-sage-dark: var(--sage-dark);
+  --color-coral: var(--coral);
+  --color-coral-dark: var(--coral-dark);
+
+  --color-accent: var(--accent);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+* {
+  box-sizing: border-box;
+}
+
+.scrollable {
+  overflow-y: auto;
+}
+
+.scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollable::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 3px;
+}
+
+.scrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-muted);
+}
+
+.app-input {
+  font-family: var(--font-manrope), sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  width: 100%;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.app-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(107, 143, 168, 0.15);
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }

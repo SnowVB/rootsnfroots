@@ -1,65 +1,106 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { TreeScene } from "@/components/tree/TreeScene";
+import { RightPanel, type ModalState } from "@/components/tree/RightPanel";
+import { Toast } from "@/components/tree/Toast";
+import { BRANCH_LIMIT } from "@/lib/tree/constants";
+import type { ZoneKey } from "@/lib/tree/types";
+import { useTreeStore } from "@/store/useTreeStore";
 
 export default function Home() {
+  const items = useTreeStore((s) => s.items);
+  const addRoot = useTreeStore((s) => s.addRoot);
+  const addTrunkItem = useTreeStore((s) => s.addTrunkItem);
+  const addBranch = useTreeStore((s) => s.addBranch);
+  const addFruit = useTreeStore((s) => s.addFruit);
+  const updateItemText = useTreeStore((s) => s.updateItemText);
+
+  const [modal, setModal] = useState<ModalState | null>(null);
+  const [inputText, setInputText] = useState("");
+  const [branchLimitToast, setBranchLimitToast] = useState(false);
+
+  useEffect(() => {
+    useTreeStore.persist.rehydrate();
+  }, []);
+
+  useEffect(() => {
+    if (!branchLimitToast) return;
+    const t = setTimeout(() => setBranchLimitToast(false), 3500);
+    return () => clearTimeout(t);
+  }, [branchLimitToast]);
+
+  function openAdd(zone: ZoneKey) {
+    if (zone === "branches" && items.branches.length >= BRANCH_LIMIT) {
+      setBranchLimitToast(true);
+      return;
+    }
+    setModal({ zone, mode: "new" });
+    setInputText("");
+  }
+
+  function openEdit(zone: ZoneKey, id: string, text: string) {
+    setModal({ zone, mode: "edit", id });
+    setInputText(text);
+  }
+
+  function handleSave() {
+    if (!modal || !inputText.trim()) return;
+    if (modal.mode === "new") {
+      if (modal.zone === "roots") addRoot(inputText);
+      else if (modal.zone === "trunk") addTrunkItem(inputText);
+      else if (modal.zone === "branches") {
+        if (!addBranch(inputText)) {
+          setBranchLimitToast(true);
+          setModal(null);
+          setInputText("");
+          return;
+        }
+      } else if (modal.zone === "crown") addFruit(inputText);
+    } else if (modal.id) {
+      updateItemText(modal.zone, modal.id, inputText);
+    }
+    setModal(null);
+    setInputText("");
+  }
+
+  function handleCancel() {
+    setModal(null);
+    setInputText("");
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="relative flex h-full flex-col">
+      <div className="z-[100] flex h-10 flex-shrink-0 items-center justify-center border-b border-white/[0.08] bg-[rgba(15,20,35,0.85)] backdrop-blur-md">
+        <span className="font-serif text-sm tracking-[0.01em] text-white/70 italic">
+          Опора — не ресурс, а ресурс — не цель
+        </span>
+      </div>
+
+      <div className="relative flex flex-1 overflow-hidden">
+        <TreeScene
+          onEditRoot={(item) => openEdit("roots", item.id, item.text)}
+          onEditTrunk={(item) => openEdit("trunk", item.id, item.text)}
+          onEditBranch={(item) => openEdit("branches", item.id, item.text)}
+          onEditFruit={(item) => openEdit("crown", item.id, item.text)}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        {branchLimitToast && (
+          <Toast
+            title="Сейчас 5 из 5"
+            body="Удали одну ветку, чтобы добавить новую — фокус не должен размываться."
+            onClose={() => setBranchLimitToast(false)}
+          />
+        )}
+        <RightPanel
+          items={items}
+          modal={modal}
+          inputText={inputText}
+          onInputChange={setInputText}
+          onOpenAdd={openAdd}
+          onSave={handleSave}
+          onCancel={handleCancel}
+        />
+      </div>
     </div>
   );
 }
