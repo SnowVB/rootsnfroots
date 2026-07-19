@@ -1,5 +1,8 @@
 // Hand-written to match supabase/migrations/0001_init.sql.
 // If the schema changes, update this file in the same commit as the migration.
+//
+// Relationships/Views/Functions are required (even empty) by @supabase/postgrest-js's
+// GenericSchema constraint — omitting them collapses every table's row type to `never`.
 
 export type Json =
   | string
@@ -37,6 +40,7 @@ export interface Database {
           created_at?: string;
           last_active_at?: string;
         };
+        Relationships: [];
       };
       trees: {
         Row: {
@@ -63,6 +67,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       roots: {
         Row: {
@@ -95,6 +100,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       trunk_items: {
         Row: {
@@ -127,6 +133,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       branches: {
         Row: {
@@ -153,6 +160,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       fruits: {
         Row: {
@@ -191,7 +199,12 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }

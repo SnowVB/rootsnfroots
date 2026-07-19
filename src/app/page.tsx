@@ -7,5 +7,5 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return <TreeApp userEmail={user?.email ?? null} />;
+  return <TreeApp userId={user?.id ?? null} userEmail={user?.email ?? null} />;
 }

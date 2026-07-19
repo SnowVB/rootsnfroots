@@ -1080,6 +1080,16 @@ language
 - §9 таблица обновлена — Resend больше не "(later)", уже в проде.
 - Пересмотреть при: если объём писем вырастет настолько, что понадобится отдельный dedicated IP или продвинутый DMARC (`p=reject`) — сейчас достаточно дефолтного `p=none` (monitor-only).
 
+**D29. Анонимная сессия → миграция в Supabase при первом входе, реализовано сразу после Auth (не отложено).**
+- Rationale: после D26 signing in делал ровно ничего функционально — дерево оставалось только в localStorage независимо от auth-статуса, то есть `/auth`'ная фраза "чтобы дерево сохранялось и было доступно с других устройств" была неправдой. Это разрыв между тем что Auth обещает и что реально происходит — logically следующий шаг, не отдельная фича на потом.
+- Реализовано: `src/lib/supabase/tree.ts` — data-access слой (browser client, значит RLS `auth.uid()` применяется автоматически): `findTreeId`/`createTreeId`, `fetchTreeItems`, `migrateLocalItemsToSupabase`, по-zone `insert*`, общие `updateItemTextRemote`/`deleteItemRemote`/`dragItemRemote`/`toggleHarvestRemote`. `useTreeStore` получил `userId`/`treeId`/`remoteLoading` + `initForUser`/`clearUser`; каждый мутатор (add/update/delete/drag/harvest) теперь дополнительно (не вместо) пишет в Supabase, когда юзер залогинен — локальный `set()` остаётся источником мгновенного UI-отклика, remote-запись летит следом (fire-and-forget, ошибки в `console.error`, без retry/rollback — сознательно просто для этого прохода).
+- **Миграция:** при первом входе, если у юзера ещё нет `trees`-строки — создаём её и bulk-insert'им текущие локальные items (id при инсерте передаём тот же, что уже сгенерирован локально через `crypto.randomUUID()` — не нужно потом сверять/переприсваивать id). При повторном входе (tree уже существует) — просто грузим items из Supabase, локальные (если есть) отбрасываются.
+- **Приватность (CLAUDE.md принцип #1):** пока юзер залогинен, `persist`'s `partialize` пишет в localStorage `EMPTY_ITEMS`, а не реальные items — иначе дерево одного аккаунта осело бы в анонимном localStorage-слоте и утекло бы в следующую анонимную сессию на том же браузере. При sign-out (`clearUser`) — items сбрасываются в `EMPTY_ITEMS`, не пытаемся восстановить до-логиновый анонимный снэпшот (тот уже мигрирован в аккаунт, хранить второй "теневой" экземпляр избыточно и путает).
+- **Race condition:** `initForUser` читает текущий `items` для решения "есть ли что мигрировать" — вызывается только после того как local rehydration (`hasHydrated`) уже завершился (см. `TreeApp.tsx` — эффект явно ждёт `hasHydrated` перед вызовом), иначе можно ошибочно решить "мигрировать нечего", пока localStorage ещё не прочитан в память.
+- **Побочная находка (важно на будущее):** руками написанный `database.types.ts` перестал типиться на текущей версии `@supabase/supabase-js`/`postgrest-js` (2.110.7) — без полей `Relationships` (на каждой таблице) и `Views`/`Functions`/`Enums`/`CompositeTypes` (на схеме) весь `Database`-тип не проходит `GenericSchema`-constraint и все таблицы схлопываются в `never`. Раньше (на момент D22) этого не требовалось — значит между тем и этим моментом postgrest-js обновил свой type-engine. **Если снова увидите `never`/`does not exist on type never` при работе с Supabase-типами — первым делом проверяйте эти поля в `database.types.ts`, не сам запрос.**
+- Что НЕ сделано: `Очистить дерево` (menu item) не трогает Supabase (сам menu item ещё не собран, см. D23); realtime-синхронизация между вкладками/устройствами не реализована (загрузка происходит один раз при входе, не подписка).
+- Пересмотреть при: если появится второй клиент того же аккаунта одновременно (два открытых окна) — сейчас нет write-conflict защиты (last-write-wins по факту), некритично пока один юзер = одна активная сессия.
+
 ---
 
 ## 17. Roadmap to Launch
@@ -1103,7 +1113,7 @@ language
 - [x] Auth: Supabase (email magic link и Google OAuth) — оба подтверждены рабочим живым тестом фаундера. Magic link потребовал фикса (D27) и custom SMTP через Resend (D28); Google OAuth работает через Client ID/Secret в Supabase dashboard, см. D26
 - [ ] Drag & Drop: @dnd-kit integration
 - [ ] Routing: `/` (tree), `/about` (как страница)
-- [ ] Анонимная сессия → миграция в БД при signup
+- [x] Анонимная сессия → миграция в БД при signup — `src/lib/supabase/tree.ts` + `useTreeStore` (`initForUser`/`clearUser`), см. D29
 - [ ] PostHog SDK + event tracking (по спеке из раздела 12)
 - [ ] Feature flags структура (но всё включено)
 - [ ] Базовая mobile responsive раскладка

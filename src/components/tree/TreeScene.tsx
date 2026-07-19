@@ -28,12 +28,13 @@ export function TreeScene({ onEditRoot, onEditTrunk, onEditBranch, onEditFruit }
 
   const items = useTreeStore((s) => s.items);
   const hasHydrated = useTreeStore((s) => s.hasHydrated);
+  const remoteLoading = useTreeStore((s) => s.remoteLoading);
   const deleteItem = useTreeStore((s) => s.deleteItem);
   const dragItem = useTreeStore((s) => s.dragItem);
   const toggleHarvest = useTreeStore((s) => s.toggleHarvest);
 
   const autoTrunk = items.trunk.filter((t) => !t.pinned);
-  const ready = imageLoaded && hasHydrated;
+  const ready = imageLoaded && hasHydrated && !remoteLoading;
 
   return (
     <div

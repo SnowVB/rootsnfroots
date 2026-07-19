@@ -9,11 +9,15 @@ import type { ZoneKey } from "@/lib/tree/types";
 import { useTreeStore } from "@/store/useTreeStore";
 
 interface TreeAppProps {
+  userId: string | null;
   userEmail: string | null;
 }
 
-export function TreeApp({ userEmail }: TreeAppProps) {
+export function TreeApp({ userId, userEmail }: TreeAppProps) {
   const items = useTreeStore((s) => s.items);
+  const hasHydrated = useTreeStore((s) => s.hasHydrated);
+  const initForUser = useTreeStore((s) => s.initForUser);
+  const clearUser = useTreeStore((s) => s.clearUser);
   const addRoot = useTreeStore((s) => s.addRoot);
   const addTrunkItem = useTreeStore((s) => s.addTrunkItem);
   const addBranch = useTreeStore((s) => s.addBranch);
@@ -27,6 +31,18 @@ export function TreeApp({ userEmail }: TreeAppProps) {
   useEffect(() => {
     useTreeStore.persist.rehydrate();
   }, []);
+
+  useEffect(() => {
+    // Wait for local rehydration first — initForUser reads current `items`
+    // to decide whether anonymous data needs migrating into the account,
+    // and that read would race an in-flight localStorage rehydration otherwise.
+    if (!hasHydrated) return;
+    if (userId) {
+      initForUser(userId);
+    } else {
+      clearUser();
+    }
+  }, [userId, hasHydrated, initForUser, clearUser]);
 
   useEffect(() => {
     if (!branchLimitToast) return;
