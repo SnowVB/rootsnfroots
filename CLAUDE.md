@@ -601,7 +601,7 @@ const TRUNK = { centerX: 50, centerY: 48, radius: 16 };
 | Analytics | **PostHog** | Product analytics + session replays + feature flags в одном инструменте, 1M событий/мес бесплатно |
 | Error tracking | **Sentry** (free tier) или **PostHog Errors** | Логирование ошибок продакшена |
 | Payments (later) | **Stripe** | Стандарт, лучшая dev experience |
-| Email (later) | **Resend** | Простой API, хорошие deliverability metrics |
+| Email | **Resend** | Простой API, хорошие deliverability metrics. Подключен раньше плана как custom SMTP для Supabase Auth — см. D28 |
 | i18n (later) | **next-intl** | Native Next.js поддержка |
 
 ### Принципы архитектуры (Architecture Principles)
@@ -1072,6 +1072,13 @@ language
 - Решение: `supabase.auth.verifyOtp({ token_hash, type })` — отдельный метод верификации, не завязанный на cookie-continuity вообще. Ссылка в письме ведёт не на хостed Supabase `/auth/v1/verify`, а сразу на наш `/auth/confirm?token_hash=...&type=email` (шаблон письма переопределён в Supabase Dashboard → Authentication → Email Templates → Magic Link: `{{ .ConfirmationURL }}` → `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`). `/auth/confirm` — Server Component, который НЕ верифицирует токен на GET (это защищает от prefetch-ботов, которые делают только GET и не жмут кнопки) — верификация происходит только по явному клику на кнопку "Подтвердить вход" (Server Action `confirmMagicLink` в `src/app/auth/actions.ts`).
 - `/auth/callback` (`exchangeCodeForSession`) остался — но теперь только для Google OAuth, где cookie-continuity не проблема (один и тот же браузер/вкладка на всём пути через Google, без email и без второго устройства).
 - Пересмотреть при: если понадобится "вход по коду" (6 цифр, вручную вбить) вместо ссылки — тот же `verifyOtp` подходит, просто `token` вместо `token_hash`, форма вместо auto-filled hidden fields.
+- Подтверждено рабочим живым тестом фаундера после подключения custom SMTP (см. D28): письмо доходит, кнопка "Подтвердить вход" логинит успешно. Письмо пока попадает в спам — ожидаемо для домена без истории отправок, не блокер, см. §19 п.6.
+
+**D28. Custom SMTP (Resend) подключен раньше срока — не в Phase 4, а сразу, чтобы разблокировать magic link.**
+- Контекст: Supabase блокирует редактирование email-шаблонов (Subject/Body) на дефолтном мейлере на **любом** плане, бесплатном или платном — это анти-спам ограничение платформы, не апселл. Без кастомного SMTP невозможно было применить фикс из D27 (шаблон должен вести на `/auth/confirm`, а не на дефолтный `{{ .ConfirmationURL }}`). Resend уже был выбран в §9 Tech Stack ("Email (later)") — просто выполнили раньше плана, не новая архитектурная сущность.
+- Реализовано: домен `rootsnfroots.com` верифицирован в Resend (DKIM + SPF TXT-записи и MX-запись под "Custom MX" в Namecheap Advanced DNS — DNS домена управляется в Namecheap, не в Vercel/Cloudflare, см. `dig NS rootsnfroots.com` → `dns1/2.registrar-servers.com`). Supabase Dashboard → Authentication → Emails → SMTP Settings: host `smtp.resend.com`, port 465, username `resend`, password — Resend API key, sender `noreply@rootsnfroots.com` / "Дерево Опоры".
+- §9 таблица обновлена — Resend больше не "(later)", уже в проде.
+- Пересмотреть при: если объём писем вырастет настолько, что понадобится отдельный dedicated IP или продвинутый DMARC (`p=reject`) — сейчас достаточно дефолтного `p=none` (monitor-only).
 
 ---
 
@@ -1093,7 +1100,7 @@ language
 - [x] Перенос дизайн-системы из прототипа в Tailwind config — цвета/шрифты в `src/app/globals.css` (`@theme`), Manrope/Literata через `next/font/google` в `src/app/layout.tsx` (Literata вместо Fraunces — см. D24)
 - [ ] Component library: ~~Root~~, ~~TrunkItem~~, ~~BranchItem~~, ~~FruitItem~~, ~~AddButton~~ готовы (`src/components/tree/`, на локальном Zustand-стейте, см. D23); ещё нет: InfoPopover, ExampleModal, WelcomeModal, HorizonDialog, QuestionsDrawer, AboutPage
 - [x] Data layer: Supabase schema + RLS policies + типы — `supabase/migrations/0001_init.sql`, типы в `src/lib/supabase/database.types.ts`
-- [x] Auth: Supabase (email magic link и Google OAuth) — код готов (`/auth`, `/auth/callback`, `middleware.ts`); magic link рабочий из коробки, Google OAuth ждёт Client ID/Secret от фаундера в Supabase dashboard, см. D26
+- [x] Auth: Supabase (email magic link и Google OAuth) — оба подтверждены рабочим живым тестом фаундера. Magic link потребовал фикса (D27) и custom SMTP через Resend (D28); Google OAuth работает через Client ID/Secret в Supabase dashboard, см. D26
 - [ ] Drag & Drop: @dnd-kit integration
 - [ ] Routing: `/` (tree), `/about` (как страница)
 - [ ] Анонимная сессия → миграция в БД при signup
@@ -1224,6 +1231,7 @@ language
 3. Когда именно делать share card — на Phase 4. Триггер: если WAR < 15% — приоритет, без share card не вырастем.
 4. Когда подключать AI insights (C3 в бэклоге) — TBD. Возможно только после многих интервью, чтобы понять реально ли нужно.
 5. Mobile стратегия — PWA первым, native позже. Когда переключаться на native — зависит от метрик использования с мобильных.
+6. Auth-письма (magic link) сейчас на английском тексте Supabase по умолчанию ("Your sign-in link" / "Sign in") при русском Sender name ("Дерево Опоры") — несоответствие языка. Не критично пока тестирует только фаундер; перевести на русский до реального запуска (Phase 2/3), заодно можно улучшить дизайн письма (см. также D27 — редактирование шаблона разблокировано только после подключения custom SMTP).
 
 ---
 
