@@ -1,12 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { TreeScene } from "@/components/tree/TreeScene";
 import { RightPanel, type ModalState } from "@/components/tree/RightPanel";
 import { Toast } from "@/components/tree/Toast";
+import { WelcomeModal } from "@/components/tree/WelcomeModal";
+import { ExampleModal } from "@/components/tree/ExampleModal";
 import { BRANCH_LIMIT } from "@/lib/tree/constants";
 import type { ZoneKey } from "@/lib/tree/types";
 import { useTreeStore } from "@/store/useTreeStore";
+
+const WELCOME_SEEN_KEY = "tree_intro_seen_v1";
+
+// The flag only ever changes via this tab's own click (closeWelcome), never
+// externally, so there's nothing to subscribe to — just a snapshot read.
+const noopSubscribe = () => () => {};
+const getWelcomeSeenSnapshot = () => localStorage.getItem(WELCOME_SEEN_KEY) !== null;
+// SSR has no localStorage; assume "seen" server-side so the modal never
+// flashes into markup that then has to be corrected after hydration.
+const getWelcomeSeenServerSnapshot = () => true;
 
 interface TreeAppProps {
   userId: string | null;
@@ -27,10 +39,24 @@ export function TreeApp({ userId, userEmail }: TreeAppProps) {
   const [modal, setModal] = useState<ModalState | null>(null);
   const [inputText, setInputText] = useState("");
   const [branchLimitToast, setBranchLimitToast] = useState(false);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+  const [exampleZone, setExampleZone] = useState<ZoneKey | null>(null);
+
+  const welcomeSeen = useSyncExternalStore(
+    noopSubscribe,
+    getWelcomeSeenSnapshot,
+    getWelcomeSeenServerSnapshot,
+  );
+  const showWelcome = !welcomeSeen && !welcomeDismissed;
 
   useEffect(() => {
     useTreeStore.persist.rehydrate();
   }, []);
+
+  function closeWelcome() {
+    localStorage.setItem(WELCOME_SEEN_KEY, "1");
+    setWelcomeDismissed(true);
+  }
 
   useEffect(() => {
     // Wait for local rehydration first — initForUser reads current `items`
@@ -120,8 +146,12 @@ export function TreeApp({ userId, userEmail }: TreeAppProps) {
           onOpenAdd={openAdd}
           onSave={handleSave}
           onCancel={handleCancel}
+          onShowExample={setExampleZone}
         />
       </div>
+
+      {showWelcome && <WelcomeModal onClose={closeWelcome} />}
+      {exampleZone && <ExampleModal zone={exampleZone} onClose={() => setExampleZone(null)} />}
     </div>
   );
 }

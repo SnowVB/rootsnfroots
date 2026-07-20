@@ -1090,6 +1090,12 @@ language
 - Что НЕ сделано: `Очистить дерево` (menu item) не трогает Supabase (сам menu item ещё не собран, см. D23); realtime-синхронизация между вкладками/устройствами не реализована (загрузка происходит один раз при входе, не подписка).
 - Пересмотреть при: если появится второй клиент того же аккаунта одновременно (два открытых окна) — сейчас нет write-conflict защиты (last-write-wins по факту), некритично пока один юзер = одна активная сессия.
 
+**D30. WelcomeModal, InfoPopover, ExampleModal собраны — следующий логичный шаг после D23 (не Auth-связанные, чисто первый-визит опыт).**
+- Rationale: без них CJM (§3) обрывается на "видит пустое дерево" — ни объяснения метафоры (welcome), ни определений зон (`i`-иконка), ни примеров. Это ядро продуктовой дифференциации (§1, §15 — "self-knowledge как отдельная категория"), а не косметика; выбрано раньше PostHog/feature flags/@dnd-kit, потому что измерять и флагировать пока особо нечего без завершённого core-опыта.
+- Реализовано: `src/lib/tree/copy.ts` — весь текст (`ZONE_DEFINITIONS`, `ZONE_EXAMPLES`, `WELCOME_TEXT`) как данные, 1:1 с CLAUDE.md §7.2–7.4, отдельно от `constants.ts` (структурные данные слотов). `WelcomeModal`/`ExampleModal` рендерятся в `TreeApp.tsx` на верхнем уровне (не внутри `RightPanel` — `ExampleModal` полноэкранный, должен перекрывать и сцену дерева, и панель, как в прототипе). `AddButton` получил обратно иконку `i` (была временно убрана в D23, пока `InfoPopover` не существовал) — `popoverZone`-стейт живёт в `RightPanel`, `exampleZone`-стейт лифтнут в `TreeApp` именно из-за полноэкранности модалки. Текст подсказки в правой панели (§7.8) возвращён к каноническому виду — временное расхождение из D23 закрыто.
+- **Гидратация без setState-в-эффекте:** для флага `tree_intro_seen_v1` использован `useSyncExternalStore` (server snapshot всегда `true` = "уже видел", реальное значение читается из localStorage только на клиенте) вместо `useState` + `useEffect`. Это не стилистический выбор — новый ESLint-правило `react-hooks/set-state-in-effect` (часть `eslint-plugin-react-hooks`) блокирует именно паттерн "прочитать localStorage в эффекте и вызвать setState" как error, не warning. `useSyncExternalStore` — официально рекомендованный React-хук ровно для этого класса задач (клиент-only значение, которое не должно вызывать hydration mismatch), решает и лишний render, и сам факт наличия эффекта. **Общий паттерн на будущее:** для любого "прочитать что-то из browser-only API один раз при маунте" — предпочитать `useSyncExternalStore`, не `useEffect` + `useState`.
+- Что НЕ входит: повторный показ welcome через `⋯`-меню (меню ещё не собрано, см. D23) — сейчас welcome показывается только автоматически при первом визите.
+
 ---
 
 ## 17. Roadmap to Launch
@@ -1108,7 +1114,7 @@ language
 ### Phase 1: MVP migration (weeks 2-4)
 
 - [x] Перенос дизайн-системы из прототипа в Tailwind config — цвета/шрифты в `src/app/globals.css` (`@theme`), Manrope/Literata через `next/font/google` в `src/app/layout.tsx` (Literata вместо Fraunces — см. D24)
-- [ ] Component library: ~~Root~~, ~~TrunkItem~~, ~~BranchItem~~, ~~FruitItem~~, ~~AddButton~~ готовы (`src/components/tree/`, на локальном Zustand-стейте, см. D23); ещё нет: InfoPopover, ExampleModal, WelcomeModal, HorizonDialog, QuestionsDrawer, AboutPage
+- [ ] Component library: ~~Root~~, ~~TrunkItem~~, ~~BranchItem~~, ~~FruitItem~~, ~~AddButton~~, ~~InfoPopover~~, ~~ExampleModal~~, ~~WelcomeModal~~ готовы (`src/components/tree/`, см. D23, D30); ещё нет: HorizonDialog, QuestionsDrawer, AboutPage
 - [x] Data layer: Supabase schema + RLS policies + типы — `supabase/migrations/0001_init.sql`, типы в `src/lib/supabase/database.types.ts`
 - [x] Auth: Supabase (email magic link и Google OAuth) — оба подтверждены рабочим живым тестом фаундера. Magic link потребовал фикса (D27) и custom SMTP через Resend (D28); Google OAuth работает через Client ID/Secret в Supabase dashboard, см. D26
 - [ ] Drag & Drop: @dnd-kit integration

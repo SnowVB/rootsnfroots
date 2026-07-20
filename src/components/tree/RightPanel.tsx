@@ -21,6 +21,7 @@ interface RightPanelProps {
   onOpenAdd: (zone: ZoneKey) => void;
   onSave: () => void;
   onCancel: () => void;
+  onShowExample: (zone: ZoneKey) => void;
 }
 
 export function RightPanel({
@@ -32,8 +33,10 @@ export function RightPanel({
   onOpenAdd,
   onSave,
   onCancel,
+  onShowExample,
 }: RightPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [popoverZone, setPopoverZone] = useState<ZoneKey | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -76,12 +79,19 @@ export function RightPanel({
                 return (
                   <AddButton
                     key={zone}
+                    zone={zone}
                     bg={info.bg}
                     label={info.label}
                     count={count}
                     limit={limit}
                     harvestedCount={harvestedCount}
+                    popoverOpen={popoverZone === zone}
                     onClick={() => onOpenAdd(zone)}
+                    onToggleInfo={() => setPopoverZone((z) => (z === zone ? null : zone))}
+                    onShowExample={() => {
+                      onShowExample(zone);
+                      setPopoverZone(null);
+                    }}
                   />
                 );
               })}
@@ -133,8 +143,11 @@ export function RightPanel({
               Подсказка
             </div>
             <p className="text-xs leading-[1.55] text-ink-soft">
-              Кликни на элемент, чтобы отредактировать его. Опоры, ресурсы и плоды можно
-              перетаскивать мышкой.
+              Кликни{" "}
+              <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-line align-middle font-serif text-[9px] font-semibold text-ink-soft italic">
+                i
+              </span>{" "}
+              чтобы узнать про каждый тип. Опоры, ресурсы и плоды можно перетаскивать мышкой.
             </p>
           </div>
 
