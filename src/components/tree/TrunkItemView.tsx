@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { capture } from "@/lib/posthog/capture";
 import type { TrunkItemData } from "@/lib/tree/types";
 import { DeleteBtn } from "./DeleteBtn";
 import { useDraggable } from "./useDraggable";
@@ -31,6 +32,7 @@ export function TrunkItemView({
     id: item.id,
     containerRef,
     onDrag,
+    onDragEnd: (_id, distancePct) => capture("item_dragged", { zone: "trunk", distance_pct: distancePct }),
     onClick: () => onEdit(item),
   });
 

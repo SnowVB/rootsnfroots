@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ROOT_SLOTS } from "@/lib/tree/constants";
+import { capture } from "@/lib/posthog/capture";
 import type { RootItemData } from "@/lib/tree/types";
 import { DeleteBtn } from "./DeleteBtn";
 import { useDraggable } from "./useDraggable";
@@ -23,6 +24,7 @@ export function RootItem({ item, containerRef, onEdit, onDelete, onDrag }: RootI
     id: item.id,
     containerRef,
     onDrag,
+    onDragEnd: (_id, distancePct) => capture("item_dragged", { zone: "roots", distance_pct: distancePct }),
     onClick: () => onEdit(item),
   });
 

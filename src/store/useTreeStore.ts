@@ -145,6 +145,7 @@ export const useTreeStore = create<TreeStore>()(
           newItem = item;
           return { items: { ...state.items, roots: [...state.items.roots, item] } };
         });
+        capture("item_added", { zone: "roots" });
         if (isFirst) capture("first_root_added");
         const { userId, treeId } = get();
         if (userId && treeId && newItem) {
@@ -170,6 +171,7 @@ export const useTreeStore = create<TreeStore>()(
           newItem = item;
           return { items: { ...state.items, trunk: [...state.items.trunk, item] } };
         });
+        capture("item_added", { zone: "trunk" });
         if (isFirst) capture("first_trunk_added");
         const { userId, treeId } = get();
         if (userId && treeId && newItem) {
@@ -204,6 +206,7 @@ export const useTreeStore = create<TreeStore>()(
           return { items: { ...state.items, branches: [...state.items.branches, item] } };
         });
         if (added && newItem) {
+          capture("item_added", { zone: "branches" });
           if (isFirst) capture("first_branch_added");
           const { userId, treeId } = get();
           if (userId && treeId) {
@@ -236,6 +239,7 @@ export const useTreeStore = create<TreeStore>()(
           newItem = item;
           return { items: { ...state.items, crown: [...state.items.crown, item] } };
         });
+        capture("item_added", { zone: "crown" });
         if (isFirst) capture("first_fruit_added");
         const { userId, treeId } = get();
         if (userId && treeId && newItem) {
@@ -277,27 +281,20 @@ export const useTreeStore = create<TreeStore>()(
         }
       },
 
+      // No analytics capture here on purpose — this fires on every mousemove
+      // tick during a drag. item_dragged is captured once, at drag-end, from
+      // the component layer (useDraggable's onDragEnd) instead.
       dragItem: (zone, id, x, y) => {
-        let distancePct = 0;
-        set((state) => {
-          const before = (state.items[zone] as AnyItem[]).find((i) => i.id === id) as
-            | { x?: number; y?: number }
-            | undefined;
-          if (before?.x !== undefined && before?.y !== undefined) {
-            distancePct = Math.hypot(x - before.x, y - before.y);
-          }
-          return {
-            items: {
-              ...state.items,
-              [zone]: (state.items[zone] as AnyItem[]).map((i) =>
-                i.id === id
-                  ? { ...i, x, y, updatedAt: Date.now(), ...(zone === "trunk" && { pinned: true }) }
-                  : i,
-              ),
-            } as TreeItems,
-          };
-        });
-        capture("item_dragged", { zone, distance_pct: Math.round(distancePct) });
+        set((state) => ({
+          items: {
+            ...state.items,
+            [zone]: (state.items[zone] as AnyItem[]).map((i) =>
+              i.id === id
+                ? { ...i, x, y, updatedAt: Date.now(), ...(zone === "trunk" && { pinned: true }) }
+                : i,
+            ),
+          } as TreeItems,
+        }));
         const { userId, treeId } = get();
         if (userId && treeId) {
           dragItemRemote(zone, id, x, y).catch((e) => console.error("Supabase dragItem failed", e));

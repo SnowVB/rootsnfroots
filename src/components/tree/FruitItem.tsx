@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { capture } from "@/lib/posthog/capture";
 import type { FruitItemData } from "@/lib/tree/types";
 import { DeleteBtn } from "./DeleteBtn";
 import { FruitMenuItem } from "./FruitMenuItem";
@@ -28,6 +29,7 @@ export function FruitItem({ item, containerRef, onEdit, onDelete, onHarvest, onD
       setMenuOpen(false);
       onDrag(id, x, y);
     },
+    onDragEnd: (_id, distancePct) => capture("item_dragged", { zone: "crown", distance_pct: distancePct }),
     onClick: () => setMenuOpen(true),
   });
 
