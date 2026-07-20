@@ -19,6 +19,16 @@ function initPostHog() {
     // sign-in) — anonymous browsing stays on the cheaper event-only tier.
     person_profiles: "identified_only",
     capture_pageview: false, // captured manually below — App Router has no router-level page-change event to hook automatically.
+    // We only want the events we deliberately name in src/lib/posthog/capture.ts
+    // calls (CLAUDE.md §12) — not generic "clicked button with text ..." /
+    // "changed input" noise mixed in alongside them.
+    autocapture: false,
+    capture_pageleave: false,
+    capture_performance: false, // no $web_vitals events
+    // Tree content is deeply personal (CLAUDE.md product principle #1) —
+    // session replay would screen-record it. Pinned off in code rather than
+    // left to a dashboard toggle that could get flipped on by accident.
+    disable_session_recording: true,
   });
 }
 
