@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FruitItemData } from "@/lib/tree/types";
 import { DeleteBtn } from "./DeleteBtn";
 import { FruitMenuItem } from "./FruitMenuItem";
@@ -18,6 +18,7 @@ interface FruitItemProps {
 export function FruitItem({ item, containerRef, onEdit, onDelete, onHarvest, onDrag }: FruitItemProps) {
   const [hover, setHover] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const harvested = item.harvested;
 
   const { dragging, handleMouseDown } = useDraggable({
@@ -32,7 +33,15 @@ export function FruitItem({ item, containerRef, onEdit, onDelete, onHarvest, onD
 
   useEffect(() => {
     if (!menuOpen) return;
-    const close = () => setMenuOpen(false);
+    // Check target containment rather than relying on stopPropagation from
+    // menu buttons to prevent this from firing — that pattern turned out to
+    // be unreliable (see CLAUDE.md); this is the same fix already proven to
+    // work in InfoPopover.
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
     const t = setTimeout(() => document.addEventListener("mousedown", close), 0);
     return () => {
       clearTimeout(t);
@@ -104,6 +113,7 @@ export function FruitItem({ item, containerRef, onEdit, onDelete, onHarvest, onD
 
       {menuOpen && (
         <div
+          ref={menuRef}
           onMouseDown={(e) => e.stopPropagation()}
           className="absolute top-[calc(100%+8px)] left-1/2 z-[1100] min-w-[150px] -translate-x-1/2 rounded-[10px] border border-line bg-white p-1 shadow-[0_8px_24px_rgba(43,42,38,0.18)]"
           style={{ animation: "scaleIn 0.12s" }}
