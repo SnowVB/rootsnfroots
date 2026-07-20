@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import posthog from "posthog-js";
 import { TreeScene } from "@/components/tree/TreeScene";
 import { RightPanel, type ModalState } from "@/components/tree/RightPanel";
 import { Toast } from "@/components/tree/Toast";
@@ -8,6 +9,7 @@ import { WelcomeModal } from "@/components/tree/WelcomeModal";
 import { ExampleModal } from "@/components/tree/ExampleModal";
 import { HorizonDialog } from "@/components/tree/HorizonDialog";
 import { BRANCH_LIMIT } from "@/lib/tree/constants";
+import { capture } from "@/lib/posthog/capture";
 import type { Horizon, ZoneKey } from "@/lib/tree/types";
 import { useTreeStore } from "@/store/useTreeStore";
 
@@ -52,14 +54,31 @@ export function TreeApp({ userId, userEmail }: TreeAppProps) {
     getWelcomeSeenServerSnapshot,
   );
   const showWelcome = !welcomeSeen && !welcomeDismissed;
+  const welcomeShownAtRef = useRef<number | null>(null);
+  const prevUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    capture("app_opened");
+  }, []);
 
   useEffect(() => {
     useTreeStore.persist.rehydrate();
   }, []);
 
+  useEffect(() => {
+    if (showWelcome && welcomeShownAtRef.current === null) {
+      welcomeShownAtRef.current = Date.now();
+      capture("welcome_shown");
+    }
+  }, [showWelcome]);
+
   function closeWelcome() {
     localStorage.setItem(WELCOME_SEEN_KEY, "1");
     setWelcomeDismissed(true);
+    const shownAt = welcomeShownAtRef.current;
+    capture("welcome_closed", {
+      time_spent_sec: shownAt ? Math.round((Date.now() - shownAt) / 1000) : undefined,
+    });
   }
 
   useEffect(() => {
@@ -69,16 +88,28 @@ export function TreeApp({ userId, userEmail }: TreeAppProps) {
     if (!hasHydrated) return;
     if (userId) {
       initForUser(userId);
+      if (prevUserIdRef.current !== userId) {
+        posthog.identify(userId, userEmail ? { email: userEmail } : undefined);
+      }
     } else {
       clearUser();
+      // Only reset on an actual sign-out transition — calling this on every
+      // anonymous mount would mint a fresh anonymous distinct_id each time,
+      // breaking cross-session tracking for people who never sign in.
+      if (prevUserIdRef.current) posthog.reset();
     }
-  }, [userId, hasHydrated, initForUser, clearUser]);
+    prevUserIdRef.current = userId;
+  }, [userId, userEmail, hasHydrated, initForUser, clearUser]);
 
   useEffect(() => {
     if (!branchLimitToast) return;
     const t = setTimeout(() => setBranchLimitToast(false), 3500);
     return () => clearTimeout(t);
   }, [branchLimitToast]);
+
+  useEffect(() => {
+    if (showHorizonDialog) capture("horizon_dialog_shown");
+  }, [showHorizonDialog]);
 
   function openAdd(zone: ZoneKey) {
     if (zone === "branches" && items.branches.length >= BRANCH_LIMIT) {
@@ -101,6 +132,12 @@ export function TreeApp({ userId, userEmail }: TreeAppProps) {
       setModal({ zone: "crown", mode: "new" });
       setInputText("");
     }
+  }
+
+  function handleHorizonClose() {
+    const wasFirstTime = items.crown.length === 0 && !horizon;
+    setShowHorizonDialog(false);
+    if (wasFirstTime) capture("horizon_skipped");
   }
 
   function openEdit(zone: ZoneKey, id: string, text: string) {
@@ -177,7 +214,7 @@ export function TreeApp({ userId, userEmail }: TreeAppProps) {
           currentValue={horizon}
           isFirstTime={items.crown.length === 0 && !horizon}
           onChoose={handleHorizonChosen}
-          onClose={() => setShowHorizonDialog(false)}
+          onClose={handleHorizonClose}
         />
       )}
     </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ZONE_INFO, ZONE_KEYS } from "@/lib/tree/constants";
 import { QUESTION_LEVEL_INFO, ZONE_QUESTIONS, type QuestionLevel } from "@/lib/tree/copy";
+import { capture } from "@/lib/posthog/capture";
 import type { ZoneKey } from "@/lib/tree/types";
 
 const LEVELS: QuestionLevel[] = ["start", "deep", "body"];
@@ -65,7 +66,10 @@ export function QuestionsDrawer({ open, onOpen, onClose }: QuestionsDrawerProps)
             return (
               <button
                 key={zone}
-                onClick={() => setActiveZone(zone)}
+                onClick={() => {
+                  setActiveZone(zone);
+                  capture("questions_zone_viewed", { zone });
+                }}
                 className="-mb-px flex-1 px-2.5 py-3 text-xs transition-colors"
                 style={{
                   color: isActive ? "var(--ink)" : "var(--ink-muted)",
@@ -91,7 +95,10 @@ export function QuestionsDrawer({ open, onOpen, onClose }: QuestionsDrawerProps)
             return (
               <div key={level} className="mb-2">
                 <button
-                  onClick={() => setOpenSection(isOpen ? null : level)}
+                  onClick={() => {
+                    setOpenSection(isOpen ? null : level);
+                    if (!isOpen) capture("questions_level_expanded", { zone: activeZone, level });
+                  }}
                   className={`flex w-full items-center justify-between rounded-[10px] border px-3.5 py-3 text-left text-[13px] font-medium text-ink transition-colors ${
                     isOpen ? "border-line bg-white" : "border-transparent hover:bg-black/[0.02]"
                   }`}
@@ -129,7 +136,10 @@ export function QuestionsDrawer({ open, onOpen, onClose }: QuestionsDrawerProps)
 
       {!open && (
         <button
-          onClick={onOpen}
+          onClick={() => {
+            onOpen();
+            capture("questions_drawer_opened");
+          }}
           className="absolute top-1/2 left-0 z-[350] flex h-[110px] w-8 items-center justify-center rounded-r-xl border border-l-0 border-line bg-[rgba(253,251,247,0.92)] text-[11px] font-medium tracking-[0.08em] text-ink-soft shadow-[2px_0_8px_rgba(0,0,0,0.04)] backdrop-blur-sm transition-colors hover:bg-white"
           style={{
             transform: "translateY(-50%) rotate(180deg)",

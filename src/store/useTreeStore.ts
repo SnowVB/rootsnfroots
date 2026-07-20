@@ -31,6 +31,7 @@ import {
   updateItemTextRemote,
   updateTreeHorizonRemote,
 } from "@/lib/supabase/tree";
+import { capture } from "@/lib/posthog/capture";
 
 const EMPTY_ITEMS: TreeItems = { roots: [], trunk: [], branches: [], crown: [] };
 
@@ -115,6 +116,7 @@ export const useTreeStore = create<TreeStore>()(
 
       setHorizon: (value) => {
         set({ horizon: value });
+        capture("horizon_chosen", { value });
         const { userId, treeId } = get();
         if (userId && treeId) {
           updateTreeHorizonRemote(treeId, value).catch((e) =>
@@ -127,7 +129,9 @@ export const useTreeStore = create<TreeStore>()(
         const trimmed = text.trim();
         if (!trimmed) return;
         let newItem: RootItemData | null = null;
+        let isFirst = false;
         set((state) => {
+          isFirst = state.items.roots.length === 0;
           const used = new Set(state.items.roots.map((r) => r.slotId));
           const freeSlot = ROOT_SLOTS.find((s) => !used.has(s.id));
           const now = Date.now();
@@ -141,6 +145,7 @@ export const useTreeStore = create<TreeStore>()(
           newItem = item;
           return { items: { ...state.items, roots: [...state.items.roots, item] } };
         });
+        if (isFirst) capture("first_root_added");
         const { userId, treeId } = get();
         if (userId && treeId && newItem) {
           insertRoot(treeId, newItem).catch((e) => console.error("Supabase insertRoot failed", e));
@@ -151,7 +156,9 @@ export const useTreeStore = create<TreeStore>()(
         const trimmed = text.trim();
         if (!trimmed) return;
         let newItem: TrunkItemData | null = null;
+        let isFirst = false;
         set((state) => {
+          isFirst = state.items.trunk.length === 0;
           const now = Date.now();
           const item: TrunkItemData = {
             id: crypto.randomUUID(),
@@ -163,6 +170,7 @@ export const useTreeStore = create<TreeStore>()(
           newItem = item;
           return { items: { ...state.items, trunk: [...state.items.trunk, item] } };
         });
+        if (isFirst) capture("first_trunk_added");
         const { userId, treeId } = get();
         if (userId && treeId && newItem) {
           insertTrunkItem(treeId, newItem).catch((e) =>
@@ -174,6 +182,7 @@ export const useTreeStore = create<TreeStore>()(
       addBranch: (text) => {
         const trimmed = text.trim();
         let added = false;
+        let isFirst = false;
         let newItem: BranchItemData | null = null;
         set((state) => {
           const used = new Set(state.items.branches.map((b) => b.slotId));
@@ -182,6 +191,7 @@ export const useTreeStore = create<TreeStore>()(
             return state;
           }
           added = true;
+          isFirst = state.items.branches.length === 0;
           const now = Date.now();
           const item: BranchItemData = {
             id: crypto.randomUUID(),
@@ -194,6 +204,7 @@ export const useTreeStore = create<TreeStore>()(
           return { items: { ...state.items, branches: [...state.items.branches, item] } };
         });
         if (added && newItem) {
+          if (isFirst) capture("first_branch_added");
           const { userId, treeId } = get();
           if (userId && treeId) {
             insertBranch(treeId, newItem).catch((e) =>
@@ -208,7 +219,9 @@ export const useTreeStore = create<TreeStore>()(
         const trimmed = text.trim();
         if (!trimmed) return;
         let newItem: FruitItemData | null = null;
+        let isFirst = false;
         set((state) => {
+          isFirst = state.items.crown.length === 0;
           const pos = ORANGE_POSITIONS[state.items.crown.length % ORANGE_POSITIONS.length];
           const now = Date.now();
           const item: FruitItemData = {
@@ -223,6 +236,7 @@ export const useTreeStore = create<TreeStore>()(
           newItem = item;
           return { items: { ...state.items, crown: [...state.items.crown, item] } };
         });
+        if (isFirst) capture("first_fruit_added");
         const { userId, treeId } = get();
         if (userId && treeId && newItem) {
           insertFruit(treeId, newItem).catch((e) => console.error("Supabase insertFruit failed", e));
@@ -240,6 +254,7 @@ export const useTreeStore = create<TreeStore>()(
             ),
           } as TreeItems,
         }));
+        capture("item_edited", { zone });
         const { userId, treeId } = get();
         if (userId && treeId) {
           updateItemTextRemote(zone, id, trimmed).catch((e) =>
@@ -255,6 +270,7 @@ export const useTreeStore = create<TreeStore>()(
             [zone]: (state.items[zone] as AnyItem[]).filter((i) => i.id !== id),
           } as TreeItems,
         }));
+        capture("item_deleted", { zone });
         const { userId, treeId } = get();
         if (userId && treeId) {
           deleteItemRemote(zone, id).catch((e) => console.error("Supabase deleteItem failed", e));
@@ -262,16 +278,26 @@ export const useTreeStore = create<TreeStore>()(
       },
 
       dragItem: (zone, id, x, y) => {
-        set((state) => ({
-          items: {
-            ...state.items,
-            [zone]: (state.items[zone] as AnyItem[]).map((i) =>
-              i.id === id
-                ? { ...i, x, y, updatedAt: Date.now(), ...(zone === "trunk" && { pinned: true }) }
-                : i,
-            ),
-          } as TreeItems,
-        }));
+        let distancePct = 0;
+        set((state) => {
+          const before = (state.items[zone] as AnyItem[]).find((i) => i.id === id) as
+            | { x?: number; y?: number }
+            | undefined;
+          if (before?.x !== undefined && before?.y !== undefined) {
+            distancePct = Math.hypot(x - before.x, y - before.y);
+          }
+          return {
+            items: {
+              ...state.items,
+              [zone]: (state.items[zone] as AnyItem[]).map((i) =>
+                i.id === id
+                  ? { ...i, x, y, updatedAt: Date.now(), ...(zone === "trunk" && { pinned: true }) }
+                  : i,
+              ),
+            } as TreeItems,
+          };
+        });
+        capture("item_dragged", { zone, distance_pct: Math.round(distancePct) });
         const { userId, treeId } = get();
         if (userId && treeId) {
           dragItemRemote(zone, id, x, y).catch((e) => console.error("Supabase dragItem failed", e));
@@ -280,12 +306,14 @@ export const useTreeStore = create<TreeStore>()(
 
       toggleHarvest: (id) => {
         let harvestedNext = false;
+        let createdAt = Date.now();
         set((state) => ({
           items: {
             ...state.items,
             crown: state.items.crown.map((f) => {
               if (f.id !== id) return f;
               harvestedNext = !f.harvested;
+              createdAt = f.createdAt;
               return {
                 ...f,
                 harvested: harvestedNext,
@@ -295,6 +323,12 @@ export const useTreeStore = create<TreeStore>()(
             }),
           },
         }));
+        if (harvestedNext) {
+          const timeSinceAddedDays = (Date.now() - createdAt) / (1000 * 60 * 60 * 24);
+          capture("fruit_harvested", { time_since_added_days: Math.round(timeSinceAddedDays * 10) / 10 });
+        } else {
+          capture("fruit_unharvested");
+        }
         const { userId, treeId } = get();
         if (userId && treeId) {
           toggleHarvestRemote(id, harvestedNext).catch((e) =>

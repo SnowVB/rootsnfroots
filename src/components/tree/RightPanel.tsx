@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ZONE_INFO, ZONE_KEYS, BRANCH_LIMIT } from "@/lib/tree/constants";
 import { HORIZON_LABELS } from "@/lib/tree/copy";
+import { capture } from "@/lib/posthog/capture";
 import type { Horizon, TreeItems, ZoneKey } from "@/lib/tree/types";
 import { AddButton } from "./AddButton";
 import { AuthStatus } from "./AuthStatus";
@@ -103,8 +104,15 @@ export function RightPanel({
                     harvestedCount={harvestedCount}
                     popoverOpen={popoverZone === zone}
                     onClick={() => onOpenAdd(zone)}
-                    onToggleInfo={() => setPopoverZone((z) => (z === zone ? null : zone))}
+                    onToggleInfo={() =>
+                      setPopoverZone((z) => {
+                        const next = z === zone ? null : zone;
+                        if (next) capture("zone_info_clicked", { zone: next });
+                        return next;
+                      })
+                    }
                     onShowExample={() => {
+                      capture("example_viewed", { zone });
                       onShowExample(zone);
                       setPopoverZone(null);
                     }}

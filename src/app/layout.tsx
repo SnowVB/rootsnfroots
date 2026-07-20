@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, Literata } from "next/font/google";
+import { PostHogProviderWrapper } from "@/lib/posthog/PostHogProvider";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -30,7 +31,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" className={`${manrope.variable} ${literata.variable} h-full`}>
-      <body className="h-full font-sans text-ink antialiased select-none">{children}</body>
+      <body className="h-full font-sans text-ink antialiased select-none">
+        <PostHogProviderWrapper>{children}</PostHogProviderWrapper>
+      </body>
     </html>
   );
 }

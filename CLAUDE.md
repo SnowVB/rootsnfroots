@@ -1116,6 +1116,20 @@ language
 - Что НЕ входит: `⋯`-меню в правой панели по-прежнему не собрано (см. D23) — там тоже должен быть пункт "О подходе", но это отдельная задача (меню зависит ещё и от Export/Очистить дерево/Horizon-пункта, которых тоже пока нет как единого dropdown).
 - Пересмотреть при: если понадобится клиентская интерактивность на странице (например, счётчик прочтений, анимации при скролле) — тогда часть страницы придётся выделить в клиентский компонент, но сейчас в этом нет необходимости.
 
+**D34. PostHog SDK + событийная аналитика + feature flags — все три в одном проходе, т.к. это одна и та же инфраструктура.**
+- Rationale: core CJM полностью собран (Auth, персистентность, весь component library) — дальше двигаться вслепую, не видя как реально им пользуются, стало главным риском. §12 (event taxonomy) был полностью специфицирован с самого начала, но ни одно событие не отправлялось. `@dnd-kit`/mobile responsive сознательно остаются ниже приоритетом — §20 явно говорит "фокус сначала на desktop launch", а PostHog blocking для Phase 4 (funnels/retention dashboards нельзя строить без данных).
+- Реализовано:
+  - `posthog-js` (пакет уже включает `posthog-js/react` как подпуть — отдельный npm-пакет `posthog-js/react` ставить не нужно).
+  - `src/lib/posthog/PostHogProvider.tsx` — инициализация в `useEffect` (не на верхнем уровне модуля — `posthog.init()` трогает `window`/`document`, что упало бы при SSR-исполнении client-компонента), no-op если `NEXT_PUBLIC_POSTHOG_KEY` не задан (фаундер ещё не создал PostHog-проект — см. ниже). `person_profiles: 'identified_only'` — анонимный трафик не создаёт полный person-профиль (дешевле). Pageview трекается вручную (`$pageview` при смене `pathname`/`searchParams`) — у App Router нет router-level page-change события, в отличие от Pages Router.
+  - `PostHogPageview` (использует `useSearchParams`) обёрнут в `<Suspense>` — иначе весь App принудительно стал бы динамическим; билд подтверждает `/about` остался `○ (Static)` после этого изменения.
+  - `src/lib/posthog/capture.ts` — единая точка вызова `posthog.capture()`, без дополнительной логики (пока).
+  - **identify/reset** — в `TreeApp`'s auth-effect: `identify(userId, {email})` при входе, но `reset()` вызывается ТОЛЬКО при реальном переходе signed-in → signed-out (через `prevUserIdRef`), не на каждом анонимном маунте — иначе каждый визит незалогиненного человека получал бы новый anonymous distinct_id, ломая кросс-сессионный трекинг для тех кто никогда не логинится.
+  - Событий добавлено по §12: `app_opened`, `welcome_shown`/`welcome_closed` (с `time_spent_sec`), `zone_info_clicked`, `example_viewed`, `first_root_added`/`first_trunk_added`/`first_branch_added`/`first_fruit_added` (проверка `length === 0` перед вставкой — прямо в `useTreeStore`), `horizon_dialog_shown`/`horizon_chosen`/`horizon_skipped`, `item_edited`/`item_deleted`/`item_dragged` (с `distance_pct`)/`fruit_harvested`(`time_since_added_days`)/`fruit_unharvested`, `questions_drawer_opened`/`questions_zone_viewed`/`questions_level_expanded`, `about_page_opened`/`coach_link_clicked` (два маленьких клиентских "острова" — `PageViewTracker`/`CoachLink` — внутри иначе полностью статичного `/about`, см. D33).
+  - Что НЕ сделано в этот проход: `tree_returned` (нужен доп. локальный таймстемп последнего визита — не критично, отдельная задача), granular auth-funnel события внутри самих Server Actions (`signInWithEmail` и т.д.) — вместо этого auth отслеживается косвенно через identify при появлении `userId`.
+  - **Feature flags:** механизм — `posthog-js/react`'s `useFeatureFlagEnabled`/`<PostHogFeature>` (уже доступны благодаря тому же `PostHogProviderWrapper`). Ни одного флага не создано — гейтить пока нечего (L10: инфраструктура готова с первого дня, активация — по данным и когда появится реальная premium-фича). Не стали изобретать фиктивный флаг ради "доказательства", что механизм работает — сам факт что `PostHogProvider` подключен уже достаточен.
+- Фаундеру нужно сделать (аналогично Resend/D28): создать проект на posthog.com (US или EU cloud — учитывая что Supabase уже в eu-central-1/Frankfurt, EU cloud держит данные в одном регионе, но это не жёсткое требование), взять Project API Key из Project Settings, добавить `NEXT_PUBLIC_POSTHOG_KEY` + `NEXT_PUBLIC_POSTHOG_HOST` в `.env.local` и в Vercel env vars (все три environment — Production/Preview/Development).
+- Пересмотреть при: если объём событий приблизится к бесплатному лимиту (1M/мес) — тогда стоит проредить менее ценные события (например `item_dragged` может быть шумным).
+
 ---
 
 ## 17. Roadmap to Launch
@@ -1140,8 +1154,8 @@ language
 - [ ] Drag & Drop: @dnd-kit integration
 - [x] Routing: `/` (tree), `/about` (как страница) — см. D33
 - [x] Анонимная сессия → миграция в БД при signup — `src/lib/supabase/tree.ts` + `useTreeStore` (`initForUser`/`clearUser`), см. D29
-- [ ] PostHog SDK + event tracking (по спеке из раздела 12)
-- [ ] Feature flags структура (но всё включено)
+- [x] PostHog SDK + event tracking (по спеке из раздела 12) — код готов, ждёт от фаундера создания PostHog-проекта и env vars, см. D34
+- [x] Feature flags структура (но всё включено) — механизм готов через `posthog-js/react` (`useFeatureFlagEnabled`), флагов пока нет — нечего гейтить, см. D34
 - [ ] Базовая mobile responsive раскладка
 
 ### Phase 2: Launch readiness (week 5)

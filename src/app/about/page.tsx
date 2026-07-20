@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ABOUT_TEXT } from "@/lib/tree/copy";
+import { CoachLink } from "./CoachLink";
+import { PageViewTracker } from "./PageViewTracker";
 
 export const metadata: Metadata = {
   title: "О подходе — Дерево Опоры",
@@ -33,6 +35,7 @@ function ResearchCard({ num, title, body }: { num: string; title: string; body: 
 export default function AboutPage() {
   return (
     <div className="min-h-full bg-cream">
+      <PageViewTracker />
       <div className="sticky top-0 z-10 border-b border-line bg-[rgba(253,251,247,0.92)] p-[16px_32px] backdrop-blur-md">
         <Link
           href="/"
@@ -104,14 +107,12 @@ export default function AboutPage() {
             ))}
             <p>
               {ABOUT_TEXT.author.contactBefore}
-              <a
+              <CoachLink
                 href={ABOUT_TEXT.author.contactUrl}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="border-b border-terracotta-dark/30 font-semibold text-terracotta-dark"
               >
                 {ABOUT_TEXT.author.contactHandle}
-              </a>
+              </CoachLink>
             </p>
             <p className="mt-6 text-right font-serif text-[15px] text-ink-muted italic">
               {ABOUT_TEXT.author.signature}
