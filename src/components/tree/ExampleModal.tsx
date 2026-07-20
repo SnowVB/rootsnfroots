@@ -15,7 +15,7 @@ export function ExampleModal({ zone, onClose }: ExampleModalProps) {
 
   return (
     <div
-      className="absolute inset-0 z-[1000] flex items-center justify-center bg-[rgba(20,30,45,0.55)] backdrop-blur-md"
+      className="absolute inset-0 isolate z-[1000] flex items-center justify-center bg-[rgba(20,30,45,0.55)] backdrop-blur-md"
       style={{ animation: "fadeIn 0.2s" }}
       onClick={onClose}
     >

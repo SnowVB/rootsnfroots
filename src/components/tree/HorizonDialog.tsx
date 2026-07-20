@@ -13,7 +13,7 @@ interface HorizonDialogProps {
 export function HorizonDialog({ currentValue, isFirstTime, onChoose, onClose }: HorizonDialogProps) {
   return (
     <div
-      className="absolute inset-0 z-[1800] flex items-center justify-center bg-[rgba(20,30,45,0.55)] backdrop-blur-md"
+      className="absolute inset-0 isolate z-[1800] flex items-center justify-center bg-[rgba(20,30,45,0.55)] backdrop-blur-md"
       style={{ animation: "fadeIn 0.2s" }}
       onClick={onClose}
     >

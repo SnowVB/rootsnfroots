@@ -5,7 +5,7 @@ import { WELCOME_TEXT } from "@/lib/tree/copy";
 export function WelcomeModal({ onClose }: { onClose: () => void }) {
   return (
     <div
-      className="absolute inset-0 z-[2000] flex items-center justify-center bg-[rgba(20,30,45,0.55)] backdrop-blur-[10px]"
+      className="absolute inset-0 isolate z-[2000] flex items-center justify-center bg-[rgba(20,30,45,0.55)] backdrop-blur-[10px]"
       style={{ animation: "fadeIn 0.3s" }}
     >
       <div
