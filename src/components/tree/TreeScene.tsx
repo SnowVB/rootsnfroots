@@ -5,6 +5,7 @@ import { trunkAutoPosition, useTreeStore } from "@/store/useTreeStore";
 import type { BranchItemData, FruitItemData, RootItemData, TrunkItemData } from "@/lib/tree/types";
 import { BranchItem } from "./BranchItem";
 import { FruitItem } from "./FruitItem";
+import { QuestionsDrawer } from "./QuestionsDrawer";
 import { RootItem } from "./RootItem";
 import { TrunkItemView } from "./TrunkItemView";
 
@@ -19,6 +20,7 @@ export function TreeScene({ onEditRoot, onEditTrunk, onEditBranch, onEditFruit }
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // A cached image can finish loading before this listener attaches, so the
   // "load" event never fires — check .complete on mount as a fallback.
@@ -110,6 +112,12 @@ export function TreeScene({ onEditRoot, onEditTrunk, onEditBranch, onEditFruit }
           </>
         )}
       </div>
+
+      <QuestionsDrawer
+        open={drawerOpen}
+        onOpen={() => setDrawerOpen(true)}
+        onClose={() => setDrawerOpen(false)}
+      />
     </div>
   );
 }

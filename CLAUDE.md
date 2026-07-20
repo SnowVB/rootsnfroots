@@ -1103,6 +1103,13 @@ language
 - Текст — 1:1 с §7.6, вынесен в `src/lib/tree/copy.ts` (`HORIZON_TEXT`, `HORIZON_OPTIONS`, `HORIZON_LABELS`).
 - Отличие от прототипа: там horizon хранился в отдельном localStorage-ключе `tree_horizon_v1`, здесь — в том же Zustand-сторе что и `items`, ради консистентности privacy/hydration-логики (не дублировать "подождать гидратации перед миграцией" на второй независимый источник данных).
 
+**D32. QuestionsDrawer собран — последний крупный кусок component library (CJM §3, шаг 8) кроме AboutPage.**
+- Rationale: по исследовательской базе (§15) — вопросы с телесным откликом ("Тело подсказывает") являются уникальным отличием метода, не воспроизводимым конкурентами. Без этого компонента продукт был просто структурированной формой ввода, без единственной вещи, которая реально отличает его от чек-листов/трекеров целей.
+- Реализовано: `src/lib/tree/copy.ts` — `ZONE_QUESTIONS` (все 4 зоны × 3 уровня, 1:1 с §7.5), `QUESTION_LEVEL_INFO`. `QuestionsDrawer` рендерится внутри `TreeScene` (не на уровне `TreeApp`) — в отличие от полноэкранных модалок, шторка позиционирована `absolute` строго в пределах сцены дерева (левая часть), не должна перекрывать правую панель; т.к. её собственный backdrop — плоский `bg-black/15` без `backdrop-filter`, проблема из L13 (наложенные blur-слои) сюда не применяется, портал не понадобился.
+- `openSection` (какая из 3 глубин раскрыта) сбрасывается на `'start'` при смене таба зоны — сделано через "adjust state during render" (сравнение `activeZone` с `prevZone`, оба в state, setState прямо в теле компонента при расхождении), а не `useEffect` + `setState` — тот же `react-hooks/set-state-in-effect` lint-error, что и в D30/D31, официально рекомендованный React-паттерн именно для "сбросить state при изменении другого state/пропа".
+- Стейт `drawerOpen` — локальный в `TreeScene`, не поднят в `TreeApp`: шторка не нужна больше нигде, незачем поднимать состояние выше того уровня, где оно реально используется.
+- Что НЕ входит: закрытие по Escape (клик по backdrop есть, клавиатурного шортката нет — не критично, добавить позже если понадобится accessibility-проход).
+
 ---
 
 ## 17. Roadmap to Launch
@@ -1121,7 +1128,7 @@ language
 ### Phase 1: MVP migration (weeks 2-4)
 
 - [x] Перенос дизайн-системы из прототипа в Tailwind config — цвета/шрифты в `src/app/globals.css` (`@theme`), Manrope/Literata через `next/font/google` в `src/app/layout.tsx` (Literata вместо Fraunces — см. D24)
-- [ ] Component library: ~~Root~~, ~~TrunkItem~~, ~~BranchItem~~, ~~FruitItem~~, ~~AddButton~~, ~~InfoPopover~~, ~~ExampleModal~~, ~~WelcomeModal~~, ~~HorizonDialog~~ готовы (`src/components/tree/`, см. D23, D30, D31); ещё нет: QuestionsDrawer, AboutPage
+- [ ] Component library: ~~Root~~, ~~TrunkItem~~, ~~BranchItem~~, ~~FruitItem~~, ~~AddButton~~, ~~InfoPopover~~, ~~ExampleModal~~, ~~WelcomeModal~~, ~~HorizonDialog~~, ~~QuestionsDrawer~~ готовы (`src/components/tree/`, см. D23, D30, D31, D32); ещё нет: AboutPage
 - [x] Data layer: Supabase schema + RLS policies + типы — `supabase/migrations/0001_init.sql`, типы в `src/lib/supabase/database.types.ts`
 - [x] Auth: Supabase (email magic link и Google OAuth) — оба подтверждены рабочим живым тестом фаундера. Magic link потребовал фикса (D27) и custom SMTP через Resend (D28); Google OAuth работает через Client ID/Secret в Supabase dashboard, см. D26
 - [ ] Drag & Drop: @dnd-kit integration
