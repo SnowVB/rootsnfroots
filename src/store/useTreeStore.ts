@@ -10,17 +10,18 @@ import {
 import type {
   BranchItemData,
   FruitItemData,
+  Horizon,
   RootItemData,
   TreeItems,
   TrunkItemData,
   ZoneKey,
 } from "@/lib/tree/types";
 import {
-  createTreeId,
+  createTree,
   deleteItemRemote,
   dragItemRemote,
   fetchTreeItems,
-  findTreeId,
+  findTree,
   insertBranch,
   insertFruit,
   insertRoot,
@@ -28,6 +29,7 @@ import {
   migrateLocalItemsToSupabase,
   toggleHarvestRemote,
   updateItemTextRemote,
+  updateTreeHorizonRemote,
 } from "@/lib/supabase/tree";
 
 const EMPTY_ITEMS: TreeItems = { roots: [], trunk: [], branches: [], crown: [] };
@@ -36,6 +38,7 @@ type AnyItem = RootItemData | TrunkItemData | BranchItemData | FruitItemData;
 
 interface TreeStore {
   items: TreeItems;
+  horizon: Horizon | null;
   hasHydrated: boolean;
   userId: string | null;
   treeId: string | null;
@@ -45,6 +48,7 @@ interface TreeStore {
   initForUser: (userId: string) => Promise<void>;
   /** Resets to a fresh anonymous state on sign-out — never keeps a signed-in user's data around locally. */
   clearUser: () => void;
+  setHorizon: (value: Horizon) => void;
   addRoot: (text: string) => void;
   addTrunkItem: (text: string) => void;
   /** Returns false when the branch limit (CLAUDE.md D3) is reached. */
@@ -61,6 +65,7 @@ export const useTreeStore = create<TreeStore>()(
   persist(
     (set, get) => ({
       items: EMPTY_ITEMS,
+      horizon: null,
       hasHydrated: false,
       userId: null,
       treeId: null,
@@ -71,21 +76,27 @@ export const useTreeStore = create<TreeStore>()(
         if (get().userId === userId && get().treeId) return;
         set({ remoteLoading: true, userId });
         try {
-          const existingTreeId = await findTreeId(userId);
-          if (existingTreeId) {
-            const items = await fetchTreeItems(existingTreeId);
-            set({ treeId: existingTreeId, items, remoteLoading: false });
+          const existingTree = await findTree(userId);
+          if (existingTree) {
+            const items = await fetchTreeItems(existingTree.id);
+            set({
+              treeId: existingTree.id,
+              items,
+              horizon: existingTree.horizon,
+              remoteLoading: false,
+            });
             return;
           }
 
           const localItems = get().items;
+          const localHorizon = get().horizon;
           const hasLocalContent =
             localItems.roots.length > 0 ||
             localItems.trunk.length > 0 ||
             localItems.branches.length > 0 ||
             localItems.crown.length > 0;
 
-          const newTreeId = await createTreeId(userId);
+          const newTreeId = await createTree(userId, localHorizon);
           if (hasLocalContent) {
             await migrateLocalItemsToSupabase(newTreeId, localItems);
           }
@@ -100,7 +111,17 @@ export const useTreeStore = create<TreeStore>()(
         }
       },
 
-      clearUser: () => set({ userId: null, treeId: null, items: EMPTY_ITEMS }),
+      clearUser: () => set({ userId: null, treeId: null, items: EMPTY_ITEMS, horizon: null }),
+
+      setHorizon: (value) => {
+        set({ horizon: value });
+        const { userId, treeId } = get();
+        if (userId && treeId) {
+          updateTreeHorizonRemote(treeId, value).catch((e) =>
+            console.error("Supabase updateTreeHorizon failed", e),
+          );
+        }
+      },
 
       addRoot: (text) => {
         const trimmed = text.trim();
@@ -290,7 +311,10 @@ export const useTreeStore = create<TreeStore>()(
       // Never mirror a signed-in user's tree into the anonymous localStorage
       // slot — that would leak their data into the next anonymous session
       // on the same browser (CLAUDE.md privacy principle #1).
-      partialize: (state) => ({ items: state.userId ? EMPTY_ITEMS : state.items }),
+      partialize: (state) => ({
+        items: state.userId ? EMPTY_ITEMS : state.items,
+        horizon: state.userId ? null : state.horizon,
+      }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },

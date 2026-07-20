@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ZONE_INFO, ZONE_KEYS, BRANCH_LIMIT } from "@/lib/tree/constants";
-import type { TreeItems, ZoneKey } from "@/lib/tree/types";
+import { HORIZON_LABELS } from "@/lib/tree/copy";
+import type { Horizon, TreeItems, ZoneKey } from "@/lib/tree/types";
 import { AddButton } from "./AddButton";
 import { AuthStatus } from "./AuthStatus";
 
@@ -17,11 +18,13 @@ interface RightPanelProps {
   modal: ModalState | null;
   inputText: string;
   userEmail: string | null;
+  horizon: Horizon | null;
   onInputChange: (text: string) => void;
   onOpenAdd: (zone: ZoneKey) => void;
   onSave: () => void;
   onCancel: () => void;
   onShowExample: (zone: ZoneKey) => void;
+  onOpenHorizon: () => void;
 }
 
 export function RightPanel({
@@ -29,11 +32,13 @@ export function RightPanel({
   modal,
   inputText,
   userEmail,
+  horizon,
   onInputChange,
   onOpenAdd,
   onSave,
   onCancel,
   onShowExample,
+  onOpenHorizon,
 }: RightPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [popoverZone, setPopoverZone] = useState<ZoneKey | null>(null);
@@ -63,6 +68,16 @@ export function RightPanel({
               Дерево Опоры
             </h1>
             <p className="mt-1 text-xs text-ink-muted">Roots &amp; Fruits</p>
+            {horizon && (
+              <button
+                onClick={onOpenHorizon}
+                title="Поменять горизонт"
+                className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-terracotta/[0.18] bg-terracotta/[0.08] px-3 py-1 text-[11px] font-medium text-terracotta-dark transition-colors hover:bg-terracotta/[0.14]"
+              >
+                <span className="h-[5px] w-[5px] rounded-full bg-terracotta" />
+                Период реализации: {HORIZON_LABELS[horizon]}
+              </button>
+            )}
           </div>
 
           <div className="mb-5">

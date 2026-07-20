@@ -6,8 +6,9 @@ import { RightPanel, type ModalState } from "@/components/tree/RightPanel";
 import { Toast } from "@/components/tree/Toast";
 import { WelcomeModal } from "@/components/tree/WelcomeModal";
 import { ExampleModal } from "@/components/tree/ExampleModal";
+import { HorizonDialog } from "@/components/tree/HorizonDialog";
 import { BRANCH_LIMIT } from "@/lib/tree/constants";
-import type { ZoneKey } from "@/lib/tree/types";
+import type { Horizon, ZoneKey } from "@/lib/tree/types";
 import { useTreeStore } from "@/store/useTreeStore";
 
 const WELCOME_SEEN_KEY = "tree_intro_seen_v1";
@@ -27,6 +28,8 @@ interface TreeAppProps {
 
 export function TreeApp({ userId, userEmail }: TreeAppProps) {
   const items = useTreeStore((s) => s.items);
+  const horizon = useTreeStore((s) => s.horizon);
+  const setHorizon = useTreeStore((s) => s.setHorizon);
   const hasHydrated = useTreeStore((s) => s.hasHydrated);
   const initForUser = useTreeStore((s) => s.initForUser);
   const clearUser = useTreeStore((s) => s.clearUser);
@@ -41,6 +44,7 @@ export function TreeApp({ userId, userEmail }: TreeAppProps) {
   const [branchLimitToast, setBranchLimitToast] = useState(false);
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
   const [exampleZone, setExampleZone] = useState<ZoneKey | null>(null);
+  const [showHorizonDialog, setShowHorizonDialog] = useState(false);
 
   const welcomeSeen = useSyncExternalStore(
     noopSubscribe,
@@ -81,8 +85,22 @@ export function TreeApp({ userId, userEmail }: TreeAppProps) {
       setBranchLimitToast(true);
       return;
     }
+    if (zone === "crown" && items.crown.length === 0 && !horizon) {
+      setShowHorizonDialog(true);
+      return;
+    }
     setModal({ zone, mode: "new" });
     setInputText("");
+  }
+
+  function handleHorizonChosen(value: Horizon) {
+    const wasFirstTime = items.crown.length === 0 && !horizon;
+    setHorizon(value);
+    setShowHorizonDialog(false);
+    if (wasFirstTime) {
+      setModal({ zone: "crown", mode: "new" });
+      setInputText("");
+    }
   }
 
   function openEdit(zone: ZoneKey, id: string, text: string) {
@@ -142,16 +160,26 @@ export function TreeApp({ userId, userEmail }: TreeAppProps) {
           modal={modal}
           inputText={inputText}
           userEmail={userEmail}
+          horizon={horizon}
           onInputChange={setInputText}
           onOpenAdd={openAdd}
           onSave={handleSave}
           onCancel={handleCancel}
           onShowExample={setExampleZone}
+          onOpenHorizon={() => setShowHorizonDialog(true)}
         />
       </div>
 
       {showWelcome && <WelcomeModal onClose={closeWelcome} />}
       {exampleZone && <ExampleModal zone={exampleZone} onClose={() => setExampleZone(null)} />}
+      {showHorizonDialog && (
+        <HorizonDialog
+          currentValue={horizon}
+          isFirstTime={items.crown.length === 0 && !horizon}
+          onChoose={handleHorizonChosen}
+          onClose={() => setShowHorizonDialog(false)}
+        />
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { createClient } from "./client";
 import type {
   BranchItemData,
   FruitItemData,
+  Horizon,
   RootItemData,
   TreeItems,
   TrunkItemData,
@@ -19,26 +20,34 @@ const ZONE_TABLE = {
   crown: "fruits",
 } as const satisfies Record<ZoneKey, string>;
 
-export async function findTreeId(userId: string): Promise<string | null> {
+export async function findTree(
+  userId: string,
+): Promise<{ id: string; horizon: Horizon | null } | null> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("trees")
-    .select("id")
+    .select("id, horizon")
     .eq("user_id", userId)
     .maybeSingle();
   if (error) throw error;
-  return data?.id ?? null;
+  return data ?? null;
 }
 
-export async function createTreeId(userId: string): Promise<string> {
+export async function createTree(userId: string, horizon: Horizon | null): Promise<string> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("trees")
-    .insert({ user_id: userId })
+    .insert({ user_id: userId, horizon })
     .select("id")
     .single();
   if (error) throw error;
   return data.id;
+}
+
+export async function updateTreeHorizonRemote(treeId: string, horizon: Horizon | null) {
+  const supabase = createClient();
+  const { error } = await supabase.from("trees").update({ horizon }).eq("id", treeId);
+  if (error) throw error;
 }
 
 export async function fetchTreeItems(treeId: string): Promise<TreeItems> {

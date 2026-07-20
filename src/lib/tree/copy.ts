@@ -1,7 +1,8 @@
-import type { ZoneKey } from "./types";
+import type { Horizon, ZoneKey } from "./types";
 
 // Source of truth for this copy: CLAUDE.md §7 (7.2 Welcome Modal, 7.3 Zone
-// Definitions, 7.4 Examples). Keep in sync — if it changes, update both.
+// Definitions, 7.4 Examples, 7.6 Horizon Dialog). Keep in sync — if it
+// changes, update both.
 
 export const ZONE_DEFINITIONS: Record<ZoneKey, string> = {
   roots:
@@ -74,4 +75,35 @@ export const WELCOME_TEXT = {
   footer:
     "Возвращайся к дереву. Реальность меняется, и дерево меняется вместе с ней. Так оно остаётся живым, а не превращается в галочку.",
   button: "Понятно, начнём",
+};
+
+export const HORIZON_TEXT = {
+  labelFirstTime: "Перед тем как добавить плод",
+  labelChange: "Период реализации",
+  title: "На какой срок ты сейчас смотришь?",
+  intro:
+    "Прежде чем выбрать, прикинь — это поможет остаться в реальности и не напланировать слишком много.",
+  questions: [
+    "Какой у тебя сейчас ритм — спокойный или загруженный? Сколько часов в неделю реально остаётся на новое?",
+    "Какие планы уже есть — переезды, проекты, обязательства? Что из этого съест внимание?",
+    "Сколько времени нужно на отдых и восстановление, чтобы не выгореть?",
+  ],
+  note: "Лучше взять срок с запасом, чем переоценить силы. В среднем люди недооценивают сроки в 1.5–2 раза.",
+  skipFirstTime: "Пропустить",
+  skipChange: "Отмена",
+  footer:
+    "Возвращайся к дереву. Ствол и крона меняются вместе с твоей реальностью. Период реализации тоже можно поменять в меню.",
+  pillLabel: "Период реализации",
+};
+
+export const HORIZON_OPTIONS: { value: Horizon; label: string; hint: string }[] = [
+  { value: "6m", label: "6 месяцев", hint: "короткий цикл, быстрая обратная связь" },
+  { value: "1y", label: "1 год", hint: "привычный горизонт планирования" },
+  { value: "3y", label: "3 года", hint: "долгий путь, серьёзные изменения" },
+];
+
+export const HORIZON_LABELS: Record<Horizon, string> = {
+  "6m": "6 месяцев",
+  "1y": "1 год",
+  "3y": "3 года",
 };

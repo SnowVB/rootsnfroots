@@ -1,5 +1,7 @@
 export type ZoneKey = "roots" | "trunk" | "branches" | "crown";
 
+export type Horizon = "6m" | "1y" | "3y";
+
 export interface RootItemData {
   id: string;
   text: string;

@@ -1096,6 +1096,13 @@ language
 - **Гидратация без setState-в-эффекте:** для флага `tree_intro_seen_v1` использован `useSyncExternalStore` (server snapshot всегда `true` = "уже видел", реальное значение читается из localStorage только на клиенте) вместо `useState` + `useEffect`. Это не стилистический выбор — новый ESLint-правило `react-hooks/set-state-in-effect` (часть `eslint-plugin-react-hooks`) блокирует именно паттерн "прочитать localStorage в эффекте и вызвать setState" как error, не warning. `useSyncExternalStore` — официально рекомендованный React-хук ровно для этого класса задач (клиент-only значение, которое не должно вызывать hydration mismatch), решает и лишний render, и сам факт наличия эффекта. **Общий паттерн на будущее:** для любого "прочитать что-то из browser-only API один раз при маунте" — предпочитать `useSyncExternalStore`, не `useEffect` + `useState`.
 - Что НЕ входит: повторный показ welcome через `⋯`-меню (меню ещё не собрано, см. D23) — сейчас welcome показывается только автоматически при первом визите.
 
+**D31. HorizonDialog собран и подключен к первому добавлению плода (CJM §3, шаг 7) — раньше это молча пропускалось.**
+- Контекст: до этого прохода `addFruit` в сторе не проверял горизонт вообще — плоды добавлялись без единого вопроса о сроке, хотя CJM и §7.6 явно описывают этот момент как часть первого опыта. Реальный функциональный пробел, не просто недостающий компонент.
+- Реализовано: `horizon: Horizon | null` в `useTreeStore` (тот же `persist`, та же приватность что и `items` — `partialize` прячет horizon в localStorage пока юзер залогинен, `clearUser` сбрасывает в `null` при выходе). Для Supabase — `trees.horizon` уже была в исходной миграции (0001_init.sql), просто не читалась/не писалась до сих пор: `findTree`/`createTree`/`updateTreeHorizonRemote` в `src/lib/supabase/tree.ts`. При первой миграции анонимного дерева в аккаунт (D29) локальный horizon (если был выбран анонимно) переносится в новую `trees`-строку тоже.
+- `TreeApp.openAdd('crown')` теперь проверяет `items.crown.length === 0 && !horizon` перед открытием формы плода — если да, сначала `HorizonDialog`, и только после выбора (не после "Пропустить") открывается форма плода. Смена горизонта позже — через pill в шапке `RightPanel` (виден только когда `horizon` уже задан).
+- Текст — 1:1 с §7.6, вынесен в `src/lib/tree/copy.ts` (`HORIZON_TEXT`, `HORIZON_OPTIONS`, `HORIZON_LABELS`).
+- Отличие от прототипа: там horizon хранился в отдельном localStorage-ключе `tree_horizon_v1`, здесь — в том же Zustand-сторе что и `items`, ради консистентности privacy/hydration-логики (не дублировать "подождать гидратации перед миграцией" на второй независимый источник данных).
+
 ---
 
 ## 17. Roadmap to Launch
@@ -1114,7 +1121,7 @@ language
 ### Phase 1: MVP migration (weeks 2-4)
 
 - [x] Перенос дизайн-системы из прототипа в Tailwind config — цвета/шрифты в `src/app/globals.css` (`@theme`), Manrope/Literata через `next/font/google` в `src/app/layout.tsx` (Literata вместо Fraunces — см. D24)
-- [ ] Component library: ~~Root~~, ~~TrunkItem~~, ~~BranchItem~~, ~~FruitItem~~, ~~AddButton~~, ~~InfoPopover~~, ~~ExampleModal~~, ~~WelcomeModal~~ готовы (`src/components/tree/`, см. D23, D30); ещё нет: HorizonDialog, QuestionsDrawer, AboutPage
+- [ ] Component library: ~~Root~~, ~~TrunkItem~~, ~~BranchItem~~, ~~FruitItem~~, ~~AddButton~~, ~~InfoPopover~~, ~~ExampleModal~~, ~~WelcomeModal~~, ~~HorizonDialog~~ готовы (`src/components/tree/`, см. D23, D30, D31); ещё нет: QuestionsDrawer, AboutPage
 - [x] Data layer: Supabase schema + RLS policies + типы — `supabase/migrations/0001_init.sql`, типы в `src/lib/supabase/database.types.ts`
 - [x] Auth: Supabase (email magic link и Google OAuth) — оба подтверждены рабочим живым тестом фаундера. Magic link потребовал фикса (D27) и custom SMTP через Resend (D28); Google OAuth работает через Client ID/Secret в Supabase dashboard, см. D26
 - [ ] Drag & Drop: @dnd-kit integration
