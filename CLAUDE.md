@@ -1110,6 +1110,12 @@ language
 - Стейт `drawerOpen` — локальный в `TreeScene`, не поднят в `TreeApp`: шторка не нужна больше нигде, незачем поднимать состояние выше того уровня, где оно реально используется.
 - Что НЕ входит: закрытие по Escape (клик по backdrop есть, клавиатурного шортката нет — не критично, добавить позже если понадобится accessibility-проход).
 
+**D33. AboutPage реализован как настоящий роут `/about` (Server Component), не как модалка поверх дерева — закрывает сразу два пункта roadmap (Component library + Routing).**
+- Rationale: §17 явно разделял "Component library" и "Routing: `/` (tree), `/about` (как страница)" на два отдельных пункта — то есть страница "О подходе" в проде всегда подразумевалась настоящим URL, не оверлеем как в прототипе (`AboutPage({ onClose })`). Реальный роут даёт: собственный URL для шеринга (человек может прислать ссылку на `/about` отдельно от дерева), SEO (собственные `<title>`/`description` через `export const metadata`), и не требует клиентского JS вообще — весь контент статический.
+- Реализовано: `src/app/about/page.tsx` — Server Component (без `"use client"`, нет интерактивности кроме обычных `<Link>` переходов), билд подтверждает `/about` как `○ (Static)` — полностью prerendered. Весь текст — `ABOUT_TEXT` в `src/lib/tree/copy.ts`, 1:1 с §7.9. Ссылка "О подходе →" добавлена в футер `RightPanel` (вместе с `AuthStatus`, над ним).
+- Что НЕ входит: `⋯`-меню в правой панели по-прежнему не собрано (см. D23) — там тоже должен быть пункт "О подходе", но это отдельная задача (меню зависит ещё и от Export/Очистить дерево/Horizon-пункта, которых тоже пока нет как единого dropdown).
+- Пересмотреть при: если понадобится клиентская интерактивность на странице (например, счётчик прочтений, анимации при скролле) — тогда часть страницы придётся выделить в клиентский компонент, но сейчас в этом нет необходимости.
+
 ---
 
 ## 17. Roadmap to Launch
@@ -1128,11 +1134,11 @@ language
 ### Phase 1: MVP migration (weeks 2-4)
 
 - [x] Перенос дизайн-системы из прототипа в Tailwind config — цвета/шрифты в `src/app/globals.css` (`@theme`), Manrope/Literata через `next/font/google` в `src/app/layout.tsx` (Literata вместо Fraunces — см. D24)
-- [ ] Component library: ~~Root~~, ~~TrunkItem~~, ~~BranchItem~~, ~~FruitItem~~, ~~AddButton~~, ~~InfoPopover~~, ~~ExampleModal~~, ~~WelcomeModal~~, ~~HorizonDialog~~, ~~QuestionsDrawer~~ готовы (`src/components/tree/`, см. D23, D30, D31, D32); ещё нет: AboutPage
+- [x] Component library: полностью готов — ~~Root~~, ~~TrunkItem~~, ~~BranchItem~~, ~~FruitItem~~, ~~AddButton~~, ~~InfoPopover~~, ~~ExampleModal~~, ~~WelcomeModal~~, ~~HorizonDialog~~, ~~QuestionsDrawer~~ (`src/components/tree/`, см. D23, D30, D31, D32) + ~~AboutPage~~ как реальный роут `/about`, не модалка (см. D33)
 - [x] Data layer: Supabase schema + RLS policies + типы — `supabase/migrations/0001_init.sql`, типы в `src/lib/supabase/database.types.ts`
 - [x] Auth: Supabase (email magic link и Google OAuth) — оба подтверждены рабочим живым тестом фаундера. Magic link потребовал фикса (D27) и custom SMTP через Resend (D28); Google OAuth работает через Client ID/Secret в Supabase dashboard, см. D26
 - [ ] Drag & Drop: @dnd-kit integration
-- [ ] Routing: `/` (tree), `/about` (как страница)
+- [x] Routing: `/` (tree), `/about` (как страница) — см. D33
 - [x] Анонимная сессия → миграция в БД при signup — `src/lib/supabase/tree.ts` + `useTreeStore` (`initForUser`/`clearUser`), см. D29
 - [ ] PostHog SDK + event tracking (по спеке из раздела 12)
 - [ ] Feature flags структура (но всё включено)

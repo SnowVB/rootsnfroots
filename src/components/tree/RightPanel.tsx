@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { ZONE_INFO, ZONE_KEYS, BRANCH_LIMIT } from "@/lib/tree/constants";
 import { HORIZON_LABELS } from "@/lib/tree/copy";
 import type { Horizon, TreeItems, ZoneKey } from "@/lib/tree/types";
@@ -167,6 +168,12 @@ export function RightPanel({
           </div>
 
           <div className="mt-auto border-t border-line pt-4">
+            <Link
+              href="/about"
+              className="mb-3 flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+            >
+              О подходе →
+            </Link>
             <AuthStatus email={userEmail} />
           </div>
         </div>
