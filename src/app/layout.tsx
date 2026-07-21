@@ -19,9 +19,26 @@ const literata = Literata({
   style: ["normal", "italic"],
 });
 
+const SITE_URL = "https://rootsnfroots.com";
+const DESCRIPTION = "Опора — не ресурс, а ресурс — не цель";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Дерево Опоры",
-  description: "Опора — не ресурс, а ресурс — не цель",
+  description: DESCRIPTION,
+  openGraph: {
+    title: "Дерево Опоры",
+    description: DESCRIPTION,
+    url: SITE_URL,
+    siteName: "Дерево Опоры",
+    locale: "ru_RU",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Дерево Опоры",
+    description: DESCRIPTION,
+  },
 };
 
 export default function RootLayout({

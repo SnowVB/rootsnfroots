@@ -1146,6 +1146,18 @@ language
 - **Важное ограничение: покрывает только client-side (браузерный JS).** Server Actions (`signInWithEmail`, `signInWithGoogle`, `confirmMagicLink` и т.д.) и `middleware.ts` выполняются на сервере — `posthog-js` там не работает, эти ошибки по-прежнему невидимы. Полное покрытие потребовало бы `posthog-node` (отдельная настройка) или перехода на Sentry (единый SDK `@sentry/nextjs` на клиент+сервер из коробки). Сознательно не делали в этот проход — client-side покрытие уже закрывает большую часть реального риска (весь Supabase-синк дерева — клиентский код), а server-side покрытие лучше вводить отдельным, осознанным шагом, а не проскакивать мимоходом внутри аналитической задачи.
 - Пересмотреть при: если Server Actions/middleware начнут давать необъяснимые сбои, которые не видно ни в client-логах, ни в Vercel's собственных runtime logs — тогда добавить `posthog-node` или мигрировать на Sentry целиком.
 
+**D36. SEO metadata, OpenGraph image, 404/500 pages, sitemap/robots — Phase 2 code-only items, взяты раньше домена/legal/performance-audit пунктов той же фазы.**
+- Rationale: с завершением Phase 1 (component library, auth, data layer, analytics, error tracking) следующий по важности блок — Phase 2 "Launch readiness". Внутри неё есть пункты, требующие founder-действий вне кода (домен → Vercel DNS, legal-тексты, cookie-banner решение зависит от юридической консультации) и пункты, полностью реализуемые в коде без внешних зависимостей — выбраны последние, чтобы не блокироваться на founder's dashboard-время.
+- Реализовано:
+  - `src/app/layout.tsx` — `metadataBase` (указывает на `rootsnfroots.com`, домен ещё не приземлён на Vercel на момент этого прохода, но `metadataBase` не требует, чтобы домен уже резолвился — используется Next'ом только для построения абсолютных URL в OG/Twitter-тегах), `openGraph`/`twitter` (`summary_large_image`) блоки.
+  - `src/app/opengraph-image.tsx` — динамическая OG-картинка через `next/og`'s `ImageResponse` (Satori-рендерер). **Важная деталь, зеркалящая D24:** у Satori нет встроенных кириллических глифов — без явно переданного font-buffer текст на кириллице рендерится как пустые прямоугольники (tofu). Решение — тот же паттерн, что и везде в проекте с шрифтами (см. D24), только на уровне рантайма, не билда: `loadTitleFont()` фетчит Google Fonts CSS2 API с `text=`-параметром (только реально используемые глифы, не весь шрифт) для `Literata:wght@500`, парсит URL шрифта из CSS, фетчит сам файл, передаёт `ArrayBuffer` в `ImageResponse`'s `fonts`. Проверено визуально (не только "билд прошёл") — сгенерированная картинка открыта и кириллица отрендерилась корректно, не как tofu.
+  - `src/app/not-found.tsx` (404) — тот же спокойный голос и Tailwind-паттерн, что уже проверен в `ErrorFallback.tsx` (D35): без "!!!", без алармизма.
+  - `src/app/error.tsx` — Next.js route-segment error boundary (обязательно `"use client"` по конвенции фреймворка). Ошибки репортятся через `reportError()` (тот же хелпер, что и D35), плюс `reset()` для повторной попытки без полной перезагрузки страницы.
+  - `src/app/global-error.tsx` — отдельный, более примитивный fallback конкретно для ошибок в самом root layout (единственное место, которое `error.tsx` не может поймать — оно оборачивает то, что рендерит layout как `children`, но не сам layout). Обязан объявлять собственные `<html>`/`<body>` и заново импортировать `globals.css`, т.к. полностью подменяет root layout, пока активен. Сознательно не использует `font-serif`/next-font CSS-переменные — те объявлены через `className` на `<html>` в обычном `layout.tsx`, которого в этом дереве нет.
+  - `src/app/sitemap.ts` / `src/app/robots.ts` — Next.js file-convention routes (не статичные файлы в `public/`), `robots.ts` явно исключает `/auth/*` из индексации.
+  - **Три слоя error-обработки теперь чётко разделены по ответственности:** `PostHogErrorBoundary` (D35, в `layout.tsx`, оборачивает то, что рендерит Next как `{children}` — то есть в том числе `error.tsx`'s boundary) → `error.tsx` (route-segment ошибки, ближайший к месту сбоя, с `reset()`) → `global-error.tsx` (ошибки в самом layout, самый внешний и самый примитивный fallback). Порядок перехвата — от внутреннего к внешнему; каждый слой ловит то, что не поймал более внутренний.
+- Пересмотреть при: когда домен реально приземлится на Vercel (Phase 2, ещё не сделано) — проверить, что `metadataBase`/`sitemap`/`robots`'s захардкоженный `https://rootsnfroots.com` действительно резолвится и OG-превью корректно подтягивается в реальных шерах (Telegram/Twitter/etc), не только локально.
+
 ---
 
 ## 17. Roadmap to Launch
@@ -1177,13 +1189,13 @@ language
 ### Phase 2: Launch readiness (week 5)
 
 - [ ] Домен `rootsnfroots.com` направлен на Vercel
-- [ ] SEO: meta tags, OpenGraph для шеринга
+- [x] SEO: meta tags, OpenGraph для шеринга — `metadataBase`/OpenGraph/Twitter card в `src/app/layout.tsx`, динамическая OG-картинка `src/app/opengraph-image.tsx`, см. D36
 - [ ] Базовый legal: Privacy Policy, Terms of Service (используем templates типа Termly)
 - [ ] Cookie banner (если нужно по EU/RU законам — обсудим в Code)
 - [x] Error tracking (Sentry или PostHog Errors) — выбран PostHog Errors, сделано раньше графика (сразу после аналитики, тот же клиент). Покрывает только client-side, см. D35
 - [ ] **Server-side error tracking** (Server Actions — `signInWithEmail`/`signInWithGoogle`/`confirmMagicLink` и т.д., плюс `middleware.ts`) — `posthog-js` там не работает, нужен `posthog-node` или переход на Sentry (`@sentry/nextjs` покрывает client+server одним SDK). Отложено сознательно (D35) — не срочно пока тестирует только фаундер, актуально станет когда реальные люди начнут проходить auth-флоу непредсказуемо. Делать перед Phase 3 (soft launch), не раньше.
-- [ ] 404 page, 500 page
-- [ ] Sitemap.xml, robots.txt
+- [x] 404 page, 500 page — `src/app/not-found.tsx` (404), `src/app/error.tsx` (route-segment runtime errors, with retry), `src/app/global-error.tsx` (root-layout-level fallback), см. D36
+- [x] Sitemap.xml, robots.txt — `src/app/sitemap.ts`, `src/app/robots.ts` (Next.js file-convention routes, disallow `/auth/`)
 - [ ] Performance audit (Lighthouse)
 - [ ] Cross-browser testing (Safari, Chrome, Firefox)
 
