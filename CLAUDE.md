@@ -1181,6 +1181,7 @@ language
 - [ ] Базовый legal: Privacy Policy, Terms of Service (используем templates типа Termly)
 - [ ] Cookie banner (если нужно по EU/RU законам — обсудим в Code)
 - [x] Error tracking (Sentry или PostHog Errors) — выбран PostHog Errors, сделано раньше графика (сразу после аналитики, тот же клиент). Покрывает только client-side, см. D35
+- [ ] **Server-side error tracking** (Server Actions — `signInWithEmail`/`signInWithGoogle`/`confirmMagicLink` и т.д., плюс `middleware.ts`) — `posthog-js` там не работает, нужен `posthog-node` или переход на Sentry (`@sentry/nextjs` покрывает client+server одним SDK). Отложено сознательно (D35) — не срочно пока тестирует только фаундер, актуально станет когда реальные люди начнут проходить auth-флоу непредсказуемо. Делать перед Phase 3 (soft launch), не раньше.
 - [ ] 404 page, 500 page
 - [ ] Sitemap.xml, robots.txt
 - [ ] Performance audit (Lighthouse)
