@@ -146,7 +146,7 @@ export const useTreeStore = create<TreeStore>()(
           return { items: { ...state.items, roots: [...state.items.roots, item] } };
         });
         capture("item_added", { zone: "roots" });
-        if (isFirst) capture("first_root_added");
+        if (isFirst) capture("first_item_added", { zone: "roots" });
         const { userId, treeId } = get();
         if (userId && treeId && newItem) {
           insertRoot(treeId, newItem).catch((e) => console.error("Supabase insertRoot failed", e));
@@ -172,7 +172,7 @@ export const useTreeStore = create<TreeStore>()(
           return { items: { ...state.items, trunk: [...state.items.trunk, item] } };
         });
         capture("item_added", { zone: "trunk" });
-        if (isFirst) capture("first_trunk_added");
+        if (isFirst) capture("first_item_added", { zone: "trunk" });
         const { userId, treeId } = get();
         if (userId && treeId && newItem) {
           insertTrunkItem(treeId, newItem).catch((e) =>
@@ -207,7 +207,7 @@ export const useTreeStore = create<TreeStore>()(
         });
         if (added && newItem) {
           capture("item_added", { zone: "branches" });
-          if (isFirst) capture("first_branch_added");
+          if (isFirst) capture("first_item_added", { zone: "branches" });
           const { userId, treeId } = get();
           if (userId && treeId) {
             insertBranch(treeId, newItem).catch((e) =>
@@ -240,7 +240,7 @@ export const useTreeStore = create<TreeStore>()(
           return { items: { ...state.items, crown: [...state.items.crown, item] } };
         });
         capture("item_added", { zone: "crown" });
-        if (isFirst) capture("first_fruit_added");
+        if (isFirst) capture("first_item_added", { zone: "crown" });
         const { userId, treeId } = get();
         if (userId && treeId && newItem) {
           insertFruit(treeId, newItem).catch((e) => console.error("Supabase insertFruit failed", e));
