@@ -31,7 +31,7 @@ import {
   updateItemTextRemote,
   updateTreeHorizonRemote,
 } from "@/lib/supabase/tree";
-import { capture } from "@/lib/posthog/capture";
+import { capture, reportError } from "@/lib/posthog/capture";
 
 const EMPTY_ITEMS: TreeItems = { roots: [], trunk: [], branches: [], crown: [] };
 
@@ -107,7 +107,7 @@ export const useTreeStore = create<TreeStore>()(
             remoteLoading: false,
           });
         } catch (e) {
-          console.error("Failed to load tree for user", e);
+          reportError(e, "Failed to load tree for user");
           set({ remoteLoading: false });
         }
       },
@@ -120,7 +120,7 @@ export const useTreeStore = create<TreeStore>()(
         const { userId, treeId } = get();
         if (userId && treeId) {
           updateTreeHorizonRemote(treeId, value).catch((e) =>
-            console.error("Supabase updateTreeHorizon failed", e),
+            reportError(e, "Supabase updateTreeHorizon failed"),
           );
         }
       },
@@ -149,7 +149,7 @@ export const useTreeStore = create<TreeStore>()(
         if (isFirst) capture("first_item_added", { zone: "roots" });
         const { userId, treeId } = get();
         if (userId && treeId && newItem) {
-          insertRoot(treeId, newItem).catch((e) => console.error("Supabase insertRoot failed", e));
+          insertRoot(treeId, newItem).catch((e) => reportError(e, "Supabase insertRoot failed"));
         }
       },
 
@@ -176,7 +176,7 @@ export const useTreeStore = create<TreeStore>()(
         const { userId, treeId } = get();
         if (userId && treeId && newItem) {
           insertTrunkItem(treeId, newItem).catch((e) =>
-            console.error("Supabase insertTrunkItem failed", e),
+            reportError(e, "Supabase insertTrunkItem failed"),
           );
         }
       },
@@ -211,7 +211,7 @@ export const useTreeStore = create<TreeStore>()(
           const { userId, treeId } = get();
           if (userId && treeId) {
             insertBranch(treeId, newItem).catch((e) =>
-              console.error("Supabase insertBranch failed", e),
+              reportError(e, "Supabase insertBranch failed"),
             );
           }
         }
@@ -243,7 +243,7 @@ export const useTreeStore = create<TreeStore>()(
         if (isFirst) capture("first_item_added", { zone: "crown" });
         const { userId, treeId } = get();
         if (userId && treeId && newItem) {
-          insertFruit(treeId, newItem).catch((e) => console.error("Supabase insertFruit failed", e));
+          insertFruit(treeId, newItem).catch((e) => reportError(e, "Supabase insertFruit failed"));
         }
       },
 
@@ -262,7 +262,7 @@ export const useTreeStore = create<TreeStore>()(
         const { userId, treeId } = get();
         if (userId && treeId) {
           updateItemTextRemote(zone, id, trimmed).catch((e) =>
-            console.error("Supabase updateItemText failed", e),
+            reportError(e, "Supabase updateItemText failed"),
           );
         }
       },
@@ -277,7 +277,7 @@ export const useTreeStore = create<TreeStore>()(
         capture("item_deleted", { zone });
         const { userId, treeId } = get();
         if (userId && treeId) {
-          deleteItemRemote(zone, id).catch((e) => console.error("Supabase deleteItem failed", e));
+          deleteItemRemote(zone, id).catch((e) => reportError(e, "Supabase deleteItem failed"));
         }
       },
 
@@ -297,7 +297,7 @@ export const useTreeStore = create<TreeStore>()(
         }));
         const { userId, treeId } = get();
         if (userId && treeId) {
-          dragItemRemote(zone, id, x, y).catch((e) => console.error("Supabase dragItem failed", e));
+          dragItemRemote(zone, id, x, y).catch((e) => reportError(e, "Supabase dragItem failed"));
         }
       },
 
@@ -329,7 +329,7 @@ export const useTreeStore = create<TreeStore>()(
         const { userId, treeId } = get();
         if (userId && treeId) {
           toggleHarvestRemote(id, harvestedNext).catch((e) =>
-            console.error("Supabase toggleHarvest failed", e),
+            reportError(e, "Supabase toggleHarvest failed"),
           );
         }
       },

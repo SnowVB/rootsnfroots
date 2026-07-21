@@ -2,8 +2,9 @@
 
 import { Suspense, useEffect } from "react";
 import posthog from "posthog-js";
-import { PostHogProvider as PHProvider } from "posthog-js/react";
+import { PostHogProvider as PHProvider, PostHogErrorBoundary } from "posthog-js/react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { ErrorFallback } from "@/components/ErrorFallback";
 import { capture } from "./capture";
 
 let initialized = false;
@@ -29,6 +30,10 @@ function initPostHog() {
     // session replay would screen-record it. Pinned off in code rather than
     // left to a dashboard toggle that could get flipped on by accident.
     disable_session_recording: true,
+    // Catches uncaught client-side errors/unhandled promise rejections.
+    // Errors we already catch ourselves (Supabase writes, etc.) don't hit
+    // this — those go through reportError() in capture.ts instead.
+    capture_exceptions: true,
   });
 }
 
@@ -58,7 +63,7 @@ export function PostHogProviderWrapper({ children }: { children: React.ReactNode
       <Suspense fallback={null}>
         <PostHogPageview />
       </Suspense>
-      {children}
+      <PostHogErrorBoundary fallback={<ErrorFallback />}>{children}</PostHogErrorBoundary>
     </PHProvider>
   );
 }

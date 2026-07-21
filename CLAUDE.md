@@ -599,7 +599,7 @@ const TRUNK = { centerX: 50, centerY: 48, radius: 16 };
 | Auth + DB | **Supabase** | Postgres + auth + storage в одном, бесплатный план, edge functions, RLS-полиси |
 | Hosting | **Vercel** | Авто-деплой из GitHub, edge network, бесплатно для нашего масштаба |
 | Analytics | **PostHog** | Product analytics + session replays + feature flags в одном инструменте, 1M событий/мес бесплатно |
-| Error tracking | **Sentry** (free tier) или **PostHog Errors** | Логирование ошибок продакшена |
+| Error tracking | **PostHog Errors** | Тот же клиент что и аналитика, не нужен второй аккаунт. Client-side only — см. D35 про ограничение и когда пересмотреть на Sentry |
 | Payments (later) | **Stripe** | Стандарт, лучшая dev experience |
 | Email | **Resend** | Простой API, хорошие deliverability metrics. Подключен раньше плана как custom SMTP для Supabase Auth — см. D28 |
 | i18n (later) | **next-intl** | Native Next.js поддержка |
@@ -1137,6 +1137,15 @@ language
 - Фаундеру нужно сделать (аналогично Resend/D28): создать проект на posthog.com (US или EU cloud — учитывая что Supabase уже в eu-central-1/Frankfurt, EU cloud держит данные в одном регионе, но это не жёсткое требование), взять Project API Key из Project Settings, добавить `NEXT_PUBLIC_POSTHOG_KEY` + `NEXT_PUBLIC_POSTHOG_HOST` в `.env.local` и в Vercel env vars (все три environment — Production/Preview/Development). ✅ Сделано 2026-07-20 (проект на EU cloud).
 - Пересмотреть при: если объём событий приблизится к бесплатному лимиту (1M/мес) — item_dragged теперь один раз за жест, а не за тик, так что это уже не главный кандидат на прореживание; смотреть по реальным цифрам когда наберётся трафик.
 
+**D35. Error tracking через PostHog Errors, не Sentry — сделано сразу за аналитикой, раньше чем §17 Phase 2 планировал.**
+- Rationale: §9 Tech Stack оставлял выбор открытым ("Sentry (free tier) или PostHog Errors"). PostHog Errors не требует нового аккаунта/дашборда — тот же клиент, что уже настроен для аналитики (D34). До этого момента любая ошибка (сломанный Supabase-запрос, необработанное исключение) была невидима никому кроме того, кто в этот момент смотрел в devtools. Учитывая что реальные Auth-аккаунты и Supabase-запись уже в проде (не гипотетически), это была активная слепая зона, а не задел на будущее.
+- Реализовано:
+  - `capture_exceptions: true` в `posthog.init()` (`src/lib/posthog/PostHogProvider.tsx`) — ловит необработанные ошибки/promise rejections на уровне окна автоматически.
+  - `<PostHogErrorBoundary>` (`posthog-js/react`) оборачивает `{children}` внутри `PHProvider` — ловит React render-ошибки, которые autocapture на уровне window не всегда видит (React перехватывает часть ошибок сам). Fallback — `src/components/ErrorFallback.tsx`, намеренно спокойный текст ("Что-то пошло не так" + "Дерево сохранено — ничего не потеряется"), без "!!!" и алармизма — в инструменте для рефлексии ошибка не должна читаться как "ты потерял свои данные" (голос продукта, §1).
+  - `reportError(error, context)` — новый хелпер в `src/lib/posthog/capture.ts`, вызывает и `console.error` (для локальной разработки), и `posthog.captureException`. Заменил ВСЕ `.catch((e) => console.error(...))` в `useTreeStore.ts` — ошибки Supabase-записи (insert/update/delete/drag/harvest/horizon, миграция дерева) раньше были видны только в консоли браузера, теперь долетают до PostHog.
+- **Важное ограничение: покрывает только client-side (браузерный JS).** Server Actions (`signInWithEmail`, `signInWithGoogle`, `confirmMagicLink` и т.д.) и `middleware.ts` выполняются на сервере — `posthog-js` там не работает, эти ошибки по-прежнему невидимы. Полное покрытие потребовало бы `posthog-node` (отдельная настройка) или перехода на Sentry (единый SDK `@sentry/nextjs` на клиент+сервер из коробки). Сознательно не делали в этот проход — client-side покрытие уже закрывает большую часть реального риска (весь Supabase-синк дерева — клиентский код), а server-side покрытие лучше вводить отдельным, осознанным шагом, а не проскакивать мимоходом внутри аналитической задачи.
+- Пересмотреть при: если Server Actions/middleware начнут давать необъяснимые сбои, которые не видно ни в client-логах, ни в Vercel's собственных runtime logs — тогда добавить `posthog-node` или мигрировать на Sentry целиком.
+
 ---
 
 ## 17. Roadmap to Launch
@@ -1171,7 +1180,7 @@ language
 - [ ] SEO: meta tags, OpenGraph для шеринга
 - [ ] Базовый legal: Privacy Policy, Terms of Service (используем templates типа Termly)
 - [ ] Cookie banner (если нужно по EU/RU законам — обсудим в Code)
-- [ ] Error tracking (Sentry или PostHog Errors)
+- [x] Error tracking (Sentry или PostHog Errors) — выбран PostHog Errors, сделано раньше графика (сразу после аналитики, тот же клиент). Покрывает только client-side, см. D35
 - [ ] 404 page, 500 page
 - [ ] Sitemap.xml, robots.txt
 - [ ] Performance audit (Lighthouse)

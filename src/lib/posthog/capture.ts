@@ -7,3 +7,11 @@ import posthog from "posthog-js";
 export function capture(event: string, properties?: Record<string, unknown>) {
   posthog.capture(event, properties);
 }
+
+// For errors we already catch (e.g. a failed Supabase write) — these never
+// hit posthog's autocaptureExceptions since that only sees uncaught errors.
+// Client-side only: this covers browser code, not Server Actions/middleware.
+export function reportError(error: unknown, context: string) {
+  console.error(context, error);
+  posthog.captureException(error, { context });
+}
