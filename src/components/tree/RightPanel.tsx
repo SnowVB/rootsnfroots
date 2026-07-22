@@ -183,6 +183,14 @@ export function RightPanel({
               О подходе →
             </Link>
             <AuthStatus email={userEmail} />
+            <div className="mt-3 flex gap-3">
+              <Link href="/privacy" className="text-[11px] text-ink-muted hover:underline">
+                Конфиденциальность
+              </Link>
+              <Link href="/terms" className="text-[11px] text-ink-muted hover:underline">
+                Условия
+              </Link>
+            </div>
           </div>
         </div>
       )}
