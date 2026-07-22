@@ -1170,6 +1170,13 @@ language
 - **Не сделано намеренно:** `color-contrast` audit (score 0) поймал `--ink-muted` (#8a877e) и `--accent` (#6b8fa8) на фоне `--cream` (#fdfbf7) — оба ниже WCAG AA 4.5:1 для мелкого текста. Это прямое следствие design-принципа §6 (приглушённая, землистая палитра, L4 — сознательный отказ от ярких/сатурированных цветов). Не поменяно в этот проход — смена этих hex-значений это design-token решение с visual trade-off, не chore, требует явного founder-решения (принять как есть или скорректировать конкретные токены), не unilateral код-фикс.
 - Пересмотреть при: если позже добавится `sharp` как зависимость (например, ради `next/image` для foreground `<img>` — сейчас сознательно plain `<img>`, см. комментарий в коде про drag-математику) — тогда можно рассмотреть WebP/AVIF через встроенный Next Image Optimization вместо статичных JPEG-файлов, дальнейшее сжатие без потери контроля над DOM-структурой, от которой зависит drag.
 
+**D38. `rootsnfroots.com` направлен на Vercel; cookie banner сознательно НЕ делаем сейчас — но это условное решение, не постоянное.**
+- Домен: A-запись (`@` → `76.76.21.21`, позже фаундер добавил и рекомендованную Vercel-ом пару `216.198.79.1`/`64.29.17.1`) добавлена в Namecheap Advanced DNS, nameservers не тронуты (Resend'а DKIM/SPF/MX там же, см. D28). SSL — Let's Encrypt, автоматически через Vercel; первый прогон завис дольше обычного (~час, `curl` падал с `SSL_ERROR_SYSCALL`, хотя `vercel domains verify` уже показывал `"ok": true`) — разрешилось нажатием "Refresh" в Vercel dashboard на странице Domains, не потребовало ничего чинить в DNS/коде. Живой тест подтвердил: `200 OK`, валидный сертификат (`Let's Encrypt`, `notAfter` через 3 месяца), HSTS-заголовок присутствует.
+- **Cookie banner: решено пока НЕ добавлять.** Rationale: PostHog уже сконфигурирован без session recording, без autocapture, без рекламных пикселей (D34/D35) — единственные cookies сейчас это (а) Supabase auth-сессия — "strictly necessary" по GDPR, согласие не требуется, только раскрытие в Privacy Policy, и (б) PostHog analytics (EU cloud) — формально требует consent под строгим прочтением GDPR, но при текущем масштабе (пре-запуск, founder + горстка тестеров) риск правоприменения нулевой. Добавлять баннер сейчас — trade-off не в пользу пользователя (лишний UI-элемент, product principle #3 "no popups") при отсутствии реальной необходимости.
+- **Обязательное условие этого решения, не опция:** будущая Privacy Policy (§17 Phase 2, ещё не написана) ДОЛЖНА явно раскрывать оба сборщика данных — Supabase auth (email, сессия) и PostHog analytics (события из §12, EU cloud, session recording выключен) — это не "если будет время", а прямое условие, при котором cookie-banner-less подход остаётся допустимым.
+- **Триггер на пересмотр — зафиксировать явно, не полагаться на память:** если в продукт добавляются (a) реклама/рекламные пиксели, (b) любой сторонний трекер помимо PostHog, (c) session recording когда-либо включается обратно, (d) PostHog autocapture когда-либо включается обратно — тогда cookie banner с явным consent становится обязательным, не опциональным, и это нужно сделать ДО того как новый трекер реально начнёт собирать данные, не после.
+- Пересмотреть при: любом из четырёх триггеров выше, или при первом реальном запуске рекламы/маркетинговых интеграций (§13 явно исключает рекламу на старте, но это может измениться).
+
 ---
 
 ## 17. Roadmap to Launch
@@ -1202,14 +1209,14 @@ language
 
 - [x] Домен `rootsnfroots.com` направлен на Vercel — A-запись на Namecheap (Advanced DNS, не тронули nameservers — Resend'а DKIM/SPF/MX там же, см. D28), SSL (Let's Encrypt, через Vercel) выпущен, HTTPS подтверждён живым тестом
 - [x] SEO: meta tags, OpenGraph для шеринга — `metadataBase`/OpenGraph/Twitter card в `src/app/layout.tsx`, динамическая OG-картинка `src/app/opengraph-image.tsx`, см. D36
-- [ ] Базовый legal: Privacy Policy, Terms of Service (используем templates типа Termly)
-- [ ] Cookie banner (если нужно по EU/RU законам — обсудим в Code)
+- [ ] Базовый legal: Privacy Policy, Terms of Service (используем templates типа Termly). **Privacy Policy обязана явно раскрыть Supabase auth + PostHog analytics (см. D38) — это условие, при котором решение не делать cookie banner остаётся в силе.**
+- [x] Cookie banner — решено пока не делать (см. D38 для rationale и явных триггеров на пересмотр: реклама, сторонние трекеры, включение session recording/autocapture обратно)
 - [x] Error tracking (Sentry или PostHog Errors) — выбран PostHog Errors, сделано раньше графика (сразу после аналитики, тот же клиент). Покрывает только client-side, см. D35
 - [ ] **Server-side error tracking** (Server Actions — `signInWithEmail`/`signInWithGoogle`/`confirmMagicLink` и т.д., плюс `middleware.ts`) — `posthog-js` там не работает, нужен `posthog-node` или переход на Sentry (`@sentry/nextjs` покрывает client+server одним SDK). Отложено сознательно (D35) — не срочно пока тестирует только фаундер, актуально станет когда реальные люди начнут проходить auth-флоу непредсказуемо. Делать перед Phase 3 (soft launch), не раньше.
 - [x] 404 page, 500 page — `src/app/not-found.tsx` (404), `src/app/error.tsx` (route-segment runtime errors, with retry), `src/app/global-error.tsx` (root-layout-level fallback), см. D36
 - [x] Sitemap.xml, robots.txt — `src/app/sitemap.ts`, `src/app/robots.ts` (Next.js file-convention routes, disallow `/auth/`)
 - [x] Performance audit (Lighthouse) — нашёл реальную проблему (`tree.png`, 7.5MB), не формальность. Desktop preset: Performance 92/100, LCP 1.9s. См. D37, L15 (mobile-preset числа для этой страницы сейчас нерепрезентативны — mobile-раскладка ещё в бэклоге)
-- [ ] Cross-browser testing (Safari, Chrome, Firefox)
+- [ ] Cross-browser testing (Safari, Chrome, Firefox) — Safari и Chrome проверены фаундером вручную (поймали реальный Safari-only баг, см. L13). Firefox не Chromium-based (отдельный движок, Gecko, не Blink) — ещё не проверен, решение отложено
 
 ### Phase 3: Soft launch (week 6)
 
