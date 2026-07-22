@@ -1200,7 +1200,7 @@ language
 
 ### Phase 2: Launch readiness (week 5)
 
-- [ ] Домен `rootsnfroots.com` направлен на Vercel
+- [x] Домен `rootsnfroots.com` направлен на Vercel — A-запись на Namecheap (Advanced DNS, не тронули nameservers — Resend'а DKIM/SPF/MX там же, см. D28), SSL (Let's Encrypt, через Vercel) выпущен, HTTPS подтверждён живым тестом
 - [x] SEO: meta tags, OpenGraph для шеринга — `metadataBase`/OpenGraph/Twitter card в `src/app/layout.tsx`, динамическая OG-картинка `src/app/opengraph-image.tsx`, см. D36
 - [ ] Базовый legal: Privacy Policy, Terms of Service (используем templates типа Termly)
 - [ ] Cookie banner (если нужно по EU/RU законам — обсудим в Code)
