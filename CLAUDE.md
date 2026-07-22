@@ -1216,7 +1216,7 @@ language
 - [x] 404 page, 500 page — `src/app/not-found.tsx` (404), `src/app/error.tsx` (route-segment runtime errors, with retry), `src/app/global-error.tsx` (root-layout-level fallback), см. D36
 - [x] Sitemap.xml, robots.txt — `src/app/sitemap.ts`, `src/app/robots.ts` (Next.js file-convention routes, disallow `/auth/`)
 - [x] Performance audit (Lighthouse) — нашёл реальную проблему (`tree.png`, 7.5MB), не формальность. Desktop preset: Performance 92/100, LCP 1.9s. См. D37, L15 (mobile-preset числа для этой страницы сейчас нерепрезентативны — mobile-раскладка ещё в бэклоге)
-- [ ] Cross-browser testing (Safari, Chrome, Firefox) — Safari и Chrome проверены фаундером вручную (поймали реальный Safari-only баг, см. L13). Firefox не Chromium-based (отдельный движок, Gecko, не Blink) — ещё не проверен, решение отложено
+- [x] Cross-browser testing — Safari, Chrome, Firefox и Яндекс.Браузер (актуален для ru-аудитории, Chromium-based) все проверены фаундером вручную, ок. По пути пойман реальный Safari-only баг (backdrop-filter, см. L13)
 
 ### Phase 3: Soft launch (week 6)
 
