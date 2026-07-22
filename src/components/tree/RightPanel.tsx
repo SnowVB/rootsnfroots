@@ -83,9 +83,9 @@ export function RightPanel({
           </div>
 
           <div className="mb-5">
-            <h3 className="mb-2.5 text-[11px] font-semibold tracking-[0.08em] text-ink-muted uppercase">
+            <h2 className="mb-2.5 text-[11px] font-semibold tracking-[0.08em] text-ink-muted uppercase">
               Добавить
-            </h3>
+            </h2>
             <div className="flex flex-col gap-1.5">
               {ZONE_KEYS.map((zone) => {
                 const info = ZONE_INFO[zone];

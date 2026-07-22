@@ -42,12 +42,22 @@ export function TreeScene({ onEditRoot, onEditTrunk, onEditBranch, onEditFruit }
     <div
       className="relative flex flex-1 items-center justify-center overflow-hidden p-5"
       style={{
-        backgroundImage: "url(/tree.png)",
+        // Dedicated small/low-res copy — this layer gets a 30px CSS blur
+        // (below), which erases detail anyway, so it doesn't need the same
+        // resolution as the sharp foreground <img>. Cuts this from ~1.2MB to
+        // ~90KB, the actual fix for the LCP element Lighthouse flagged here.
+        backgroundImage: "url(/tree-bg.jpg)",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
       }}
     >
+      {/* CSS background-images aren't prioritized by the browser preloader the
+          way an <img> with fetchpriority is — this hints the LCP fetch to
+          start early. Rendered here rather than the root layout so it only
+          fires on routes that actually use the tree image; React 19 hoists
+          <link> tags to <head> regardless of where they render. */}
+      <link rel="preload" as="image" href="/tree-bg.jpg" fetchPriority="high" />
       <div
         className="absolute inset-0 z-0 backdrop-blur-[30px] backdrop-brightness-[0.6] backdrop-saturate-[1.05]"
         style={{ background: "rgba(25,35,45,0.25)" }}
@@ -57,10 +67,18 @@ export function TreeScene({ onEditRoot, onEditTrunk, onEditBranch, onEditFruit }
         {/* eslint-disable-next-line @next/next/no-img-element -- drag math needs the raster's rendered box, not next/image's layout wrapper */}
         <img
           ref={imgRef}
-          src="/tree.png"
+          src="/tree.jpg"
+          fetchPriority="high"
           alt="Дерево Опоры"
           onLoad={() => setImageLoaded(true)}
-          className="block max-h-[calc(100vh-80px)] max-w-full rounded-xl"
+          // `aspect-[2400/2107]` (not width/height attributes) declares the
+          // ratio for the browser's space-reservation purposes. Raw
+          // width/height attrs become definite CSS width/height at
+          // (low-priority) presentation-hint level — combined with
+          // max-h/max-w below, that lets each axis clamp independently and
+          // silently distorts the image. aspect-ratio ties the two axes
+          // together the way max-h/max-w here need it to.
+          className="block max-h-[calc(100vh-80px)] max-w-full aspect-[2400/2107] rounded-xl"
         />
         {ready && (
           <>
