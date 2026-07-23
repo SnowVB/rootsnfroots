@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "./database.types";
+import { reportServerError } from "@/lib/posthog/server";
 
 // Refreshes the auth session cookie on every request so Server Components
 // always see a valid session. See Supabase's Next.js SSR auth guide.
@@ -26,8 +27,14 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Do not remove — this call refreshes the session token.
-  await supabase.auth.getUser();
+  // Do not remove — this call refreshes the session token. Wrapped: this
+  // runs on every request, so a Supabase outage must not take the whole
+  // site down with it — report and let the request continue either way.
+  try {
+    await supabase.auth.getUser();
+  } catch (error) {
+    await reportServerError(error, "Middleware session refresh failed");
+  }
 
   return supabaseResponse;
 }
